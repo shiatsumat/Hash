@@ -1,5 +1,5 @@
-module Pappy(module Char, module Pos, module Parse, module PappyEx, module Printer) where
-import Char
+module Pappy(module Data.Char, module Pos, module Parse, module PappyEx, module Printer) where
+import Data.Char
 import Pos
 import Parse
 import PappyEx
