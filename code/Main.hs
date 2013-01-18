@@ -64,13 +64,13 @@ data DataHeader = DHdr DataType Name [Template] [(AccessModifier, Type)] derivin
 data DataDeclaration = DDec
     DataHeader
     [(AccessModifier, VariantDeclaration)]
-    [(AccessModifier, Function)]
+    [(AccessModifier, FunctionDeclaration)]
     [(AccessModifier, TypeDeclaration)]
     (Maybe AlgebraicData)
     deriving (Eq, Show, Read)
 data AlgebraicData = Alg [(Name, [(Type, Name)])] deriving (Eq, Show, Read)
 
-data TypeDeclaration = TDecl Name [Template] Type
+data TypeDeclaration = TDecl Name [Template] Type deriving (Eq, Show, Read)
 
 data Token = TokVariantDeclaration VariantDeclaration
            | TokVariantDefinition VariantDefinition
