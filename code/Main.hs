@@ -133,7 +133,7 @@ Parser cpCode =
                  x <- Parser cdvComment
                  y <- Parser cdvCode
                  return $ x++y)
-          </> (do return "")
+          </> return ""
         return x )
 
 Parser cpComment =
@@ -142,7 +142,7 @@ Parser cpComment =
                  x <- Parser cdvComment
                  y <- Parser cdvComment
                  return $ commentOut x ++ y)
-          </> do {string "-}"; return ""}
+          </> (string "-}">>return "")
         return $ commentOut x ++ y )
 
 main = putStr $ eval "1+3*(4+5){-aba\n{-foo-}ab-}a{-ab\na-}a"
