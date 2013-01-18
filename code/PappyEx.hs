@@ -1,5 +1,5 @@
 module PappyEx where
-import Char
+import Data.Char
 import Pos
 import Parse
 
