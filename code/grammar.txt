@@ -1,0 +1,5 @@
+small = a-z_
+large = A-Z_
+digit = 0-9
+varid = small many 
+type = type "->" Type / uppercase
