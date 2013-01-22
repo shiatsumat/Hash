@@ -44,5 +44,6 @@ Although the lazy evaluation of Hash is not very strong, the syntax is similar t
 Implementation of Hash Compiler
 -------------------------------
 Hash compiler is implemented in Haskell.
-The grammar is written in a parsing expression grammar (PEG) and the parser is packrat parser.
-I use Parser.hs and Pos.hs in a library "Pappy" made by Bryan Ford. I use a monadic parser.
+The grammar is written in a parsing expression grammar (PEG) and the parser is a packrat parser.
+I use a monadic parser in Parser.hs and Pos.hs of a library "Pappy" made by Bryan Ford.
+For more information about Pappy, see http://pdos.csail.mit.edu/~baford/packrat/thesis/ .

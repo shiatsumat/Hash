@@ -10,7 +10,7 @@ data Type = TypName Name
           | TypPointer Type
           | TypReference Type
           | TypRvalueReference Type
-          | TypBinaryOperator Symbol Type Type
+          | TypApplication Type [Either Type Expression]
           | TypArray Type
           | TypFunction Type Type
           | TypStatic Type
@@ -82,30 +82,56 @@ data Token = TokVariantDeclaration VariantDeclaration
 
 
 ---- data ----
+
+cppDefinableSymbols :: [Name]
+cppDefinableSymbols = [
+    "+","-","*","/","%",
+    "++","--",
+    "+=","-=","*=","/=","%=",
+    "<<",">>",
+    "<<=",">>=",
+    "&","|","^","~",
+    "&=","|=","^=",
+    "!","&&","||",
+    "==","!=","<",">",">=","<=",
+    "&","->","->*"]
+
+cppUndefinableSymbols :: [Name]
+cppUndefinableSymbols = [
+    "?",":","::",".",".*"]
+
 symbolName :: Symbol -> Name
-symbolName s = "operator"++ (concatMap translate s)
-    where translate c = case c of {
+symbolName s = "operator"++ translate s
+    where name c = case c of {
               '!'->"Excl"; '?'->"Quest";
               '<'->"Lt"; '>'->"Gt";
               '/'->"Slash"; '\\'->"Backslash";
               '='->"Equal";
-              '&'->"And"; '|'->"Or"; '^'->"Xor"; '~'->"Not";
               '+'->"Plus"; '-'->"Minus"; '*'->"Times";
               '@'->"At"; '$'->"Dollar"; '%'->"Percent";
+              '&'->"And"; '|'->"Or"; '^'->"Xor"; '~'->"Not";
               '#'->"Hash"; '.'->"Dot"}
+          translate s = if elem s cppDefinableSymbols
+                        then concatMap name s
+                        else s
 
 reservedWords =
   [ "main",
-    "if","then","else","case",
+    "if","then","else","case","switch",
     "while","until","for","do",
     "struct","class","data",
     "public","private","protected",
     "this","thisdata",
-    "constructor","destructor",
-    "bool","char","short","int","long","float","double"]
+    "constructor","destructor","operator",
+    "bool","char","short","int","long","float","double",
+    "typeid","template","typename",
+    "const_cast","dynamic_cast","static_cast","reinterpret_cast",
+    "new","delete",
+    "throw","try","catch"]
 
 
 ---- parsing data ----
+
 data CodeDerivs = CodeDerivs {
         cdvCode::Result CodeDerivs String,
         cdvComment::Result CodeDerivs String,
@@ -117,32 +143,32 @@ instance Derivs CodeDerivs where
     dvPos = cdvPos
 
 parse :: LargeParseFunc CodeDerivs
-cpCode, cpComment :: ParseFunc CodeDerivs String
 
 eval s = case cdvCode (parse (Pos "<input>" 1 1) s) of
               Parsed v _ _ -> v
               NoParse e -> error $ show e
-parse pos s = d where
-    d = CodeDerivs (cpCode d) (cpComment d) (autochar parse pos s) pos
+parse pos s = parse' s pos s
+parse' a pos s = d where
+    d = CodeDerivs (cpCode d) (cpComment d) (autochar (parse' a) pos s) pos
 
+    Parser cpCode =
+        (do n <- getIndent a
+            l <- getPosLine
+            notStr "{-"
+            x <- (do string "{-"
+                     x <- Parser cdvComment
+                     y <- Parser cdvCode
+                     return $ x++y)
+                 </> return ""
+            return $ "indent:"++show n++" line:"++show l++"\n"++x)
+    
+    Parser cpComment =
+       (do x <- noneOfStr ["-}","{-"]
+           y <- (do string "{-"
+                    x <- Parser cdvComment
+                    y <- Parser cdvComment
+                    return $ commentOut x ++ y)
+                </> (string "-}">>return "")
+           return $ commentOut x ++ y )
 
----- parsers ----
-Parser cpCode =
-    (do notStr "{-"
-        x <- (do string "{-"
-                 x <- Parser cdvComment
-                 y <- Parser cdvCode
-                 return $ x++y)
-          </> return ""
-        return x )
-
-Parser cpComment =
-    (do x <- noneOfStr ["-}","{-"]
-        y <- (do string "{-"
-                 x <- Parser cdvComment
-                 y <- Parser cdvComment
-                 return $ commentOut x ++ y)
-          </> (string "-}">>return "")
-        return $ commentOut x ++ y )
-
-main = putStr $ eval "1+3*(4+5){-aba\n{-foo-}ab-}a{-ab\na-}a"
+main = putStr $ eval "  a{-aba\n   {-foo-}ab-}a{-arb\n f-}a{-a-}q"

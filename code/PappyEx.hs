@@ -22,3 +22,20 @@ notStr s = noneOfStr [s]
 commentOut :: String->String
 commentOut s = concatMap (\s->"//"++s++"\n") (lines s)
 
+parser y = let Parser x = y in x
+
+indentOf :: String -> Int
+indentOf (c:cs) = case c of
+                     ' ' -> 1+indentOf cs
+                     '\t' -> 4+indentOf cs
+                     _ -> 0
+indentOf [] = 0
+
+indentsOf :: String -> [Int]
+indentsOf s = map indentOf (lines s)
+
+getIndent :: Derivs d => String -> Parser d Int
+getIndent s = getPosLine >>= \n->return (indentsOf s !! n)
+
+getPosLine :: Derivs d => Parser d Int
+getPosLine = getPos >>= \p->return (posLine p-1)
