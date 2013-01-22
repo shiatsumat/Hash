@@ -28,18 +28,28 @@ Inheritance and encapsulation are also possible.
 
 Algebraic Data Type
 -------------------
-The very distinctive point of Hash is that classes can contain an algebraic data type.
+You can use a Haskell-like algebraic data type (ADT). You can also use a recursive definition.
+ADT can have member functions just like a class.
 
 Pattern Matching
 ----------------
 Haskell has a very strong pattern matching system, which makes programming highly intuititive.
 The syntax of pattern matching is mainly based on Haskell, but you can also use an active pattern inherited from F#.
-Pattern matching can be applied for algebraic data type in a class.
+Pattern matching will be automatically prepared for an algebraic data type.
+You can also define active patterns for classes and ADTs.
 
 Lazy Evaluation
 ---------------
 Lazy evaluation on expressions and types is implemented using a pointer.
 Although the lazy evaluation of Hash is not very strong, the syntax is similar to that of Haskell.
+You can use an infinite list.
+
+Constance
+---------
+Automatically, Hash compiler adds "const" keywords to the output. In order to make something not constant, add a keyword "variable".
+Hash encourages you to program statically as possible. Surely you will find it very reasonable.
+
+Function
 
 Implementation of Hash Compiler
 -------------------------------
