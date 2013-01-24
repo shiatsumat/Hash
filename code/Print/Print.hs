@@ -1,4 +1,4 @@
-module Printer where
+module Print.Print where
 
 line :: String->String->String
 line a b = a++"\n"++b

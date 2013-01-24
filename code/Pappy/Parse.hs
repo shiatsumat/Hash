@@ -1,9 +1,9 @@
-module Parse where
+module Pappy.Parse where
 
 import Data.Char
 import Data.List
 
-import Pos
+import Pappy.Pos
 
 
 ---------- Data types used for parsing

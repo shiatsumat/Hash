@@ -1,4 +1,4 @@
-module Token where
+module HashToken where
 
 type Name = String
 type Literal = String
@@ -62,9 +62,8 @@ data DataDeclaration = DDec
     [(AccessModifier, VariantDeclaration)]
     [(AccessModifier, FunctionDeclaration)]
     [(AccessModifier, TypeDeclaration)]
-    (Maybe AlgebraicData)
     deriving (Eq, Show, Read)
-data AlgebraicData = Alg [(Name, [(Type, Name)])] deriving (Eq, Show, Read)
+data AlgebraicData = AHdr [(Name, [(Type, Name)])] deriving (Eq, Show, Read)
 
 data TypeDeclaration = TDecl Name [Template] Type deriving (Eq, Show, Read)
 
@@ -74,5 +73,7 @@ data Token = TokVariantDeclaration VariantDeclaration
            | TokFunctionDefinition FunctionDefinition
            | TokDataDeclaration DataDeclaration
            | TokTypeDeclaration TypeDeclaration
+           | TokCppCompilerDirective String
+           | TokHashCompilerDirective String
     deriving (Eq, Show, Read)
 

@@ -1,6 +1,6 @@
 -- Simple data type to keep track of character positions
 -- within a text file or other text stream.
-module Pos where
+module Pappy.Pos where
 
 
 -- Basic position indicator data type: filename, line number, column number.

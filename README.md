@@ -44,12 +44,15 @@ Lazy evaluation on expressions and types is implemented using a pointer.
 Although the lazy evaluation of Hash is not very strong, the syntax is similar to that of Haskell.
 You can use an infinite list.
 
-Constance
+Constancy
 ---------
-Automatically, Hash compiler adds "const" keywords to the output. In order to make something not constant, add a keyword "variable".
-Hash encourages you to program statically as possible. Surely you will find it very reasonable.
+Hash encourages you to program statically as possible.
+Automatically, Hash compiler adds const keywords to the proper points of the output. In order to make something not constant, add a keyword which means "variable".
+Surely you will find it very reasonable.
 
 Function
+--------
+You can use a lambda expression.
 
 Implementation of Hash Compiler
 -------------------------------
