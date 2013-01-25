@@ -41,7 +41,7 @@ getIndent s = getPosLine >>= \n->return (indentsOf s !! n)
 getPosLine :: Derivs d => Parser d Int
 getPosLine = getPos >>= \p->return (posLine p-1)
 
-infixl 1 <&>,<&&>
+infixl 3 <&>,<&&>
 (<&>),(<&&>) :: Derivs d => Parser d String -> Parser d String -> Parser d String
 p1 <&> p2 = do{s1<-p1;s2<-p2;return $ s1++s2}
 p1 <&&> p2 = do{s1<-p1;s2<-p2;return $ s1++"\n"++s2}
@@ -53,6 +53,9 @@ simply p = p >> return ""
 
 many' p = (do { v <- p; vs <- many' p; return $ v:"\n":vs } )
 	 </> return []
+
+single :: Derivs d => Parser d t -> Parser d [t]
+single p = p >>= (\x->return [x])
 
 instance (Derivs d ) => Functor (Parser d) where
     fmap f p = p>>=(\x->return $ f x)

@@ -58,15 +58,18 @@ nameStartChar = alphabetChar++"_"
 nameChar = nameStartChar++digitChar++"'"
 nameName s = concatMap translate s
     where translate c = case c of {'\''->"Prime"; _ -> [c]}
+whiteChar = " \t\n\r"
 
 ---- parsing data ----
 
 data CodeDerivs = CodeDerivs {
-        cdvCode::Result CodeDerivs String,
-        cdvName,cdvNumberLiteral,cdvStringLiteral,
-        cdvComment,cdvNComment,
-        cdvCppCompilerDirective,cdvHashCompilerDirective
+        cdvCode::Result CodeDerivs [Token],
+        cdvName,cdvNumberLiteral,cdvCharLiteral,cdvStringLiteral
             ::Result CodeDerivs String,
+        cdvType,cdvPattern,
+        cdvWhiteStuff::Result CodeDerivs [Token],
+        cdvComment,cdvNComment::Result CodeDerivs String,
+        cdvCppCompilerDirective::Result CodeDerivs Token,
         cdvChar::Result CodeDerivs Char,
         cdvPos::Pos
     }
@@ -83,19 +86,22 @@ parse pos s = parse' s pos s
 parse' a pos s = d where
     d = CodeDerivs
         (cpCode d)
-        (cpName d) (cpNumberLiteral d) (cpStringLiteral d)
-        (cpComment d)(cpNComment d)
-        (cpCppCompilerDirective d) (cpHashCompilerDirective d)
+        (cpName d) (cpNumberLiteral d) (cpCharLiteral d) (cpStringLiteral d)
+        (cpType d) (cpPattern d)
+        (cpWhiteStuff d) (cpComment d)(cpNComment d)
+        (cpCppCompilerDirective d)
         (autochar (parse' a) pos s) pos
+    
+    ---- Basic ----
 
     cpCode = parser
         (do n <- getIndent a
             l <- getPosLine
-            s <- (many $ 
-                Parser cdvComment </>
-                Parser cdvNComment </>
-                (anyChar >> return ""))
-            return $ "indent:"++show n++" line:"++show l++"\n"++concat s)
+            s <- concat<$>many (
+                    (Parser cdvWhiteStuff) </>
+                    (single $ Parser cdvCppCompilerDirective) </>
+                    (anyChar >> return []))
+            return s)
     
     cpName = parser
         (do c <- oneOf nameStartChar
@@ -103,13 +109,31 @@ parse' a pos s = d where
             return $ c:cs)
 
     cpNumberLiteral = parser
-        (do s <- many1 $ oneOf digitChar
+        (do many1 $ oneOf digitChar)
+
+    cpCharLiteral = parser
+        (do char '\''
+            s <- do{x <- char '\\';y <- anyChar;return [x,y]}
+             </> do{c<-anyChar;return [c]}
+            char '\''
+            return s)
+    
+    cpStringLiteral = parser
+        (do char '"'
+            s <- concat <$>
+                 many (do{x <- char '\\';y <- anyChar;return [x,y]}
+                 </> do{c<-anyChar;return [c]})
+            char '"'
             return s)
 
-    cpStringLiteral = parser
-        (do return "")
+    ---- White Stuff ----
+    
+    cpWhiteStuff = parser
+        (do concat <$> many1(
+               (Parser cdvComment >>= \s->return [TokComment s]) </>
+               (Parser cdvNComment >>= \s->return [TokComment s]) </>
+               (oneOf whiteChar >> return [])))
 
-    ---- Comment ----
     cpComment = parser
         (do string "//"
             s <- many $ notChar '\n'
@@ -119,12 +143,29 @@ parse' a pos s = d where
     cpNComment = parser
         (do string "{-"
             x <- noneOfStr ["-}","{-"]
-            y <- ('\n':) <$> concat <$> (many' $ Parser cdvNComment <&> noneOfStr ["-}","{-"])
+            y <- ('\n':) <$> concat <$>
+                (many' $ Parser cdvNComment <&> noneOfStr ["-}","{-"])
                 <&> (simply $ string "-}")
             return $ commentOut $ x++y)
 
-    ---- Compiler Directive ----
-    cpCppCompilerDirective = parser (do return "")
+    ---- Function ----
+    
+    cpType = parser
+        (do return [])
 
-    cpHashCompilerDirective = parser (do return "")
+    cpPattern = parser
+        (do return [])
+
+    {-cpFunctionDeclaration = parser
+        (do string "func"
+            return "")-}
+
+    ---- Compiler Directive ----
+
+    cpCppCompilerDirective = parser
+        (do char '#'
+            x <- noneOfStr ["\n","\\\n"]
+            y <- concat<$>many'(string "\\\n">>noneOfStr ["\n","\\\n"])
+            char '\n'
+            return $ TokCppCompilerDirective(x++y))
 

@@ -47,7 +47,7 @@ ADTs can have member functions just like a class.
 Pattern Matching
 ----------------
 Haskell has a very strong pattern matching system, which makes programming highly intuititive.
-The syntax of pattern matching is mainly based on Haskell, but you can also use an active pattern inherited from F#.
+The syntax of pattern matching is mainly based on Haskell.
 
 Pattern matching will be automatically prepared for an algebraic data type. You can also define active patterns for classes and ADTs like F#.
 

@@ -1,4 +1,4 @@
-import HashParse
+import HashPrint
 import Control.Applicative
 
-main = eval <$> (readFile "input.txt") >>= \s->writeFile "output.txt" s
+main = compile <$> (readFile "in") >>= \s->writeFile "out" s

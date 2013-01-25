@@ -73,6 +73,7 @@ data Token = TokVariantDeclaration VariantDeclaration
            | TokFunctionDefinition FunctionDefinition
            | TokDataDeclaration DataDeclaration
            | TokTypeDeclaration TypeDeclaration
+           | TokComment String
            | TokCppCompilerDirective String
            | TokHashCompilerDirective String
     deriving (Eq, Show, Read)
