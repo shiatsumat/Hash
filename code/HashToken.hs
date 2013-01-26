@@ -14,6 +14,8 @@ data Type = TypName Name
           | TypFunction Type Type
           | TypStatic Type
           | TypTemplate Type [Type]
+          | TypTuple [Type]
+          | TypList [Type]
           | TypAuto
     deriving (Eq, Show, Read)
 data Template = TempType Type
@@ -21,12 +23,14 @@ data Template = TempType Type
               | TempVarFixed Literal
     deriving (Eq, Show, Read)
 
-data Statement = Stt [Expression] deriving (Eq, Show, Read)
+data Statement = SttSingle Expression
+               | SttBlock [Statement]
+    deriving (Eq, Show, Read)
 data ControlFlow = While | Until | DoWhile deriving (Eq, Show, Read)
 data Expression = ExpName Name
                 | ExpLiteral Literal
-                | ExpSymbol String
                 | ExpSubstitution Name Expression
+                | ExpApplication Expression Expression Expression
                 | ExpIf Expression Expression Expression
                 | ExpCase Expression [(Pattern, Expression)]
                 | ExpLambda [Pattern] Statement
@@ -61,18 +65,18 @@ data DataDeclaration = DDec
     DataHeader
     [(AccessModifier, VariantDeclaration)]
     [(AccessModifier, FunctionDeclaration)]
-    [(AccessModifier, TypeDeclaration)]
+    [(AccessModifier, TypeAliasDeclaration)]
     deriving (Eq, Show, Read)
 data AlgebraicData = AHdr [(Name, [(Type, Name)])] deriving (Eq, Show, Read)
 
-data TypeDeclaration = TDecl Name [Template] Type deriving (Eq, Show, Read)
+data TypeAliasDeclaration = TADecl Name [Template] Type deriving (Eq, Show, Read)
 
 data Token = TokVariantDeclaration VariantDeclaration
            | TokVariantDefinition VariantDefinition
            | TokFunctionDeclaration FunctionDeclaration
            | TokFunctionDefinition FunctionDefinition
            | TokDataDeclaration DataDeclaration
-           | TokTypeDeclaration TypeDeclaration
+           | TokTypeAliasDeclaration TypeAliasDeclaration
            | TokComment String
            | TokCppCompilerDirective String
            | TokHashCompilerDirective String
