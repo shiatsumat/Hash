@@ -17,6 +17,7 @@ notChar c = noneOf [c]
 noneOfStr :: Derivs d => [String]->Parser d String
 noneOfStr ss = Pappy.Parse.many ((noneOf $ map head ss) </> (choice $ map prs ss))
         where prs (c:s) = do{char c; notFollowedBy $ string s; return c}
+oneOfStr ss = choice $ fmap string ss
 notStr :: Derivs d => String->Parser d String
 notStr s = noneOfStr [s]
 
@@ -46,13 +47,15 @@ infixl 3 <&>,<&&>
 p1 <&> p2 = do{s1<-p1;s2<-p2;return $ s1++s2}
 p1 <&&> p2 = do{s1<-p1;s2<-p2;return $ s1++"\n"++s2}
 
-optional' p = Pappy.Parse.optional p >>= \x->return $ case x of{Just s->s;Nothing->""}
+optional' :: Derivs d => Parser d [v] -> Parser d [v]
+optional' p = Pappy.Parse.optional p >>= \x->return $ case x of{Just s->s;Nothing->[]}
 
 simply :: Derivs d => Parser d String -> Parser d String
 simply p = p >> return ""
 
-many' p = (do { v <- p; vs <- many' p; return $ v:"\n":vs } )
-	 </> return []
+many1', many' :: Derivs d => Parser d String -> Parser d [String]
+many1' p = (do { v <- p; vs <- many1' p; return $ v:"\n":vs } )
+many' p = (do { v <- p; vs <- many' p; return $ v:"\n":vs } ) </> return []
 
 single :: Derivs d => Parser d t -> Parser d [t]
 single p = p >>= (\x->return [x])

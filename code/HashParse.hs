@@ -103,10 +103,17 @@ parse' a pos s = d where
                     (anyChar >> return []))
             return s)
     
+    ---- Name ----
+
     cpName = parser
         (do c <- oneOf nameStartChar
             cs <- many $ oneOf nameChar
             return $ c:cs)
+    
+    cpDefinableName = parser
+        ((Parser cdvName) `satisfy` (`notElem` reservedWords))
+
+    ---- Literal ----
 
     cpNumberLiteral = parser
         (do many1 $ oneOf digitChar)
@@ -126,6 +133,14 @@ parse' a pos s = d where
             char '"'
             return s)
 
+    ---- Symbol ----
+
+    cpSymbol s = parser
+        (do Parser cdvWhiteStuff
+            string s
+            Parser cdvWhiteStuff
+            return [])
+
     ---- White Stuff ----
     
     cpWhiteStuff = parser
@@ -144,9 +159,9 @@ parse' a pos s = d where
         (do string "{-"
             x <- noneOfStr ["-}","{-"]
             y <- ('\n':) <$> concat <$>
-                (many' $ Parser cdvNComment <&> noneOfStr ["-}","{-"])
+                (many' $ (Parser cdvNComment <&> noneOfStr ["-}","{-"]))
                 <&> (simply $ string "-}")
-            return $ commentOut $ x++y)
+            return $ commentOut (x++y) )
 
     ---- Function ----
     
@@ -156,16 +171,31 @@ parse' a pos s = d where
     cpPattern = parser
         (do return [])
 
-    {-cpFunctionDeclaration = parser
+    cpTemplateList :: ParseFunc CodeDerivs [Token]
+    cpTemplateList = parser
+        (do string "!("
+            return [])
+
+    cpFunctionDeclaration = parser
         (do string "func"
-            return "")-}
+            n <- Parser cpDefinableName
+            t <- Parser cdvType
+            return "")
+
+    cpFunctionDefinition = parser
+        (do n <- Parser cpDefinableName
+            p <- Parser cdvPattern
+            return [])
+
 
     ---- Compiler Directive ----
 
     cpCppCompilerDirective = parser
         (do char '#'
             x <- noneOfStr ["\n","\\\n"]
-            y <- concat<$>many'(string "\\\n">>noneOfStr ["\n","\\\n"])
-            char '\n'
-            return $ TokCppCompilerDirective(x++y))
+            y <- concat<$>many(
+                (string "\\\n")>>
+                ('\n':)<$>(noneOfStr ["\n","\\\n"]))
+            z <- string "\n"
+            return $ TokCppCompilerDirective(x++y++z))
 

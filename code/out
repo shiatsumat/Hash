@@ -1,1 +1,1 @@
-[TokComment "//ajj\n",TokComment "//a\n////ii\n//a\n",TokComment "//pp\n",TokComment "/////aaa\n",TokComment "//99\n"]
+[TokCppCompilerDirective "define a 10\n20\n30\n",TokComment "//ae\n////ii\n//////rr\n////xx\n//a\n",TokComment "//pp\n"]

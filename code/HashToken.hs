@@ -25,8 +25,8 @@ data Statement = Stt [Expression] deriving (Eq, Show, Read)
 data ControlFlow = While | Until | DoWhile deriving (Eq, Show, Read)
 data Expression = ExpName Name
                 | ExpLiteral Literal
+                | ExpSymbol String
                 | ExpSubstitution Name Expression
-                | ExpApplication Expression [Expression]
                 | ExpIf Expression Expression Expression
                 | ExpCase Expression [(Pattern, Expression)]
                 | ExpLambda [Pattern] Statement
