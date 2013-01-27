@@ -28,9 +28,15 @@ data Statement = SttSingle Expression
     deriving (Eq, Show, Read)
 data ControlFlow = While | Until | DoWhile deriving (Eq, Show, Read)
 data Expression = ExpName Name
-                | ExpLiteral Literal
+                | ExpSymbol Symbol
+                | ExpNumberLiteral Literal
+                | ExpStringLiteral Literal
+                | ExpCharLiteral Literal
                 | ExpSubstitution Name Expression
-                | ExpApplication Expression Expression Expression
+                | ExpApplication Expression [Expression]
+                | ExpBinarySymbol Symbol Expression Expression
+                | ExpPrefixUnarySymbol Symbol Expression
+                | ExpSuffixUnarySymbol Symbol Expression
                 | ExpIf Expression Expression Expression
                 | ExpCase Expression [(Pattern, Expression)]
                 | ExpLambda [Pattern] Statement
@@ -80,5 +86,6 @@ data Token = TokVariantDeclaration VariantDeclaration
            | TokComment String
            | TokCppCompilerDirective String
            | TokHashCompilerDirective String
+           | Tok String
     deriving (Eq, Show, Read)
 

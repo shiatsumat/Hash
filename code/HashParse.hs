@@ -6,44 +6,97 @@ import HashToken
 
 ---- data ----
 
-cppDefinableSymbols :: [Name]
-cppDefinableSymbols = [
-    "+","-","*","/","%",
-    "++","--",
-    "+=","-=","*=","/=","%=",
-    "<<",">>",
-    "<<=",">>=",
-    "&","|","^","~",
-    "&=","|=","^=",
-    "!","&&","||",
-    "==","!=","<",">",">=","<=",
-    "&","->","->*"]
-
-cppUndefinableSymbols :: [Name]
-cppUndefinableSymbols = [
-    "?",":","::",".",".*"]
-
-symbolName :: Symbol -> Name
-symbolName s = "operator"++ translate s
-    where name c = case c of {
-              '!'->"Excl"; '?'->"Quest";
-              '<'->"Lt"; '>'->"Gt";
-              '/'->"Slash"; '\\'->"Backslash";
-              '='->"Equal";
-              '+'->"Plus"; '-'->"Minus"; '*'->"Times";
-              '@'->"At"; '$'->"Dollar"; '%'->"Percent";
-              '&'->"And"; '|'->"Or"; '^'->"Xor"; '~'->"Not";
-              '#'->"Hash"; '.'->"Dot"}
-          translate s = if elem s cppDefinableSymbols
-                        then s
-                        else concatMap name s
-
 infixlSymbols = [
+    [],
+    [],
+    ["||"],
+    ["&&"],
+    ["|"],
+    ["^"],
+    ["&"],
+    ["==","!="],
+    ["<","<=",">",">="],
+    ["<<",">>"],
+    
     ["+","-"],
-    ["*","/","%"]]
+    ["*","/","%"],
+    [".*","->*"],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    []]
+
 infixrSymbols = [
     [],
-    ["^"]]
+    ["=","+=","-=","*=","/=","%=","<<=",">>=","&=","^=","|="],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+
+    [],
+    [],
+    [],
+    [],
+    [".","->"],
+    ["::"],
+    [],
+    [],
+    [],
+    []]
+
+prefixSymbols = [
+    ["throw"],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    
+    [],
+    [],
+    [],
+    ["++","--","+","-","!","~","*","&","sizeof","new","delete"],
+    [],
+    [],
+    [],
+    [],
+    [],
+    []]
+
+suffixSymbols = [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    
+    [],
+    [],
+    [],
+    [],
+    ["++","--"],
+    [],
+    [],
+    [],
+    [],
+    []]
 
 infixrTypeSymbols = [
     ["->"]]
@@ -80,7 +133,7 @@ data CodeDerivs = CodeDerivs {
         cdvType :: Result CodeDerivs Type,
         cdvPattern :: Result CodeDerivs Pattern,
         cdvStatement :: Result CodeDerivs Statement,
-        cdvExpression,cdvTerm0,cdvTerm1,cdvTerm2,cdvTerm3,cdvTerm4,cdvTerm5, cdvTerm6,cdvTerm7,cdvTerm8,cdvTerm9,cdvTerm10,cdvTerm11,cdvTerm12,cdvTerm13,cdvTerm14,cdvTerm15,cdvTerm16,cdvTerm17,cdvTerm18,cdvTerm19,cdvTerm20,cdvTerm21 :: Result CodeDerivs Expression,
+        cdvExpression,cdvTerm0,cdvTerm1,cdvTerm2,cdvTerm3,cdvTerm4,cdvTerm5, cdvTerm6,cdvTerm7,cdvTerm8,cdvTerm9,cdvTerm10,cdvTerm11,cdvTerm12,cdvTerm13,cdvTerm14,cdvTerm15,cdvTerm16,cdvTerm17,cdvTerm18,cdvTerm19,cdvTerm20 :: Result CodeDerivs Expression,
         cdvChar::Result CodeDerivs Char,
         cdvPos::Pos
     }
@@ -105,7 +158,6 @@ cdvTerm 17 = cdvTerm17
 cdvTerm 18 = cdvTerm18
 cdvTerm 19 = cdvTerm19
 cdvTerm 20 = cdvTerm20
-cdvTerm 21 = cdvTerm21
 
 instance Derivs CodeDerivs where
     dvChar = cdvChar
@@ -126,7 +178,7 @@ parse' a pos s = d where
         (cpCppCompilerDirective d)
         (cpType d) (cpPattern d)
         (cpStatement d)
-        (cpExpression d) (cpTerm 0 d) (cpTerm 1 d) (cpTerm 2 d) (cpTerm 3 d) (cpTerm 4 d) (cpTerm 5 d) (cpTerm 6 d) (cpTerm 7 d) (cpTerm 8 d) (cpTerm 9 d) (cpTerm 10 d) (cpTerm 11 d) (cpTerm 12 d) (cpTerm 13 d) (cpTerm 14 d) (cpTerm 15 d) (cpTerm 16 d) (cpTerm 17 d) (cpTerm 18 d) (cpTerm 19 d) (cpTerm 20 d) (cpTerm 21 d)
+        (cpExpression d) (cpTerm 0 d) (cpTerm 1 d) (cpTerm 2 d) (cpTerm 3 d) (cpTerm 4 d) (cpTerm 5 d) (cpTerm 6 d) (cpTerm 7 d) (cpTerm 8 d) (cpTerm 9 d) (cpTerm 10 d) (cpTerm 11 d) (cpTerm 12 d) (cpTerm 13 d) (cpTerm 14 d) (cpTerm 15 d) (cpTerm 16 d) (cpTerm 17 d) (cpTerm 18 d) (cpTerm 19 d) (cpTerm 20 d)
         (autochar (parse' a) pos s) pos
     
     ---- Basic ----
@@ -137,7 +189,7 @@ parse' a pos s = d where
             s <- concat<$>many (
                     (single $ Parser cdvCppCompilerDirective) </>
                     ((Parser cdvWhiteStuff) `satisfy` (not.null)) </>
-                    (single $ TokFunctionDeclaration <$> Parser cpFunctionDeclaration) </>
+                    (Parser cpFunctionDeclaration) </>
                     (anyChar >> return []))
             return s)
 
@@ -163,6 +215,10 @@ parse' a pos s = d where
             string "-}"
             return $ commentOut (x++y) )
 
+    white = Parser cdvWhiteStuff
+    string' s = white>>string s
+    char' c = white>>char c
+
     ---- Name ----
 
     cpName = parser
@@ -174,33 +230,20 @@ parse' a pos s = d where
     cpDefinableName = parser
         ((Parser cdvName) `satisfy` (`notElem` reservedWords))
 
-    ---- Symbol ----
-
-    cpSymbol s = parser
-        (do Parser cdvWhiteStuff
-            string s
-            return s)
-    cpKeyword = cpSymbol
-
     ---- Literal ----
 
     cpNumberLiteral = parser
-        (do many1 $ oneOf digitChar)
+        (white >> (many1 $ oneOf digitChar))
 
     cpCharLiteral = parser
-        (do char '\''
-            s <- do{x <- char '\\';y <- anyChar;return [x,y]}
-             </> do{c<-anyChar;return [c]}
-            char '\''
-            return s)
+        (sandwich (char' '\'') (char' '\'') $
+            do{x <- char '\\';y <- anyChar;return [x,y]}
+            </> do{c<-anyChar;return [c]})
     
     cpStringLiteral = parser
-        (do char '"'
-            s <- concat <$>
-                 many (do{x <- char '\\';y <- anyChar;return [x,y]}
-                 </> do{c<-anyChar;return [c]})
-            char '"'
-            return s)
+        (sandwich (char' '"') (char' '"') $
+            concat <$> many (do{x <- char '\\';y <- anyChar;return [x,y]}
+            </> do{c<-notChar '\"';return [c]}))
 
     ---- Compiler Directive ----
 
@@ -209,7 +252,7 @@ parse' a pos s = d where
             x <- noneOfStr ["\n","\\\n"]
             y <- concat<$>many(
                 (string "\\\n")>>
-                ('\n':)<$>(noneOfStr ["\n","\\\n"]))
+                ("\\\n"++)<$>(noneOfStr ["\n","\\\n"]))
             string "\n"
             return $ TokCppCompilerDirective("#"++x++y++"\n"))
 
@@ -219,73 +262,98 @@ parse' a pos s = d where
         (Parser cdvTerm0)
 
     cpTerm :: Int -> ParseFunc CodeDerivs Expression
-    cpTerm 21 = parser
-        (do s <- Parser cdvNumberLiteral
-            return (ExpLiteral s))
-    cpTerm n = parser
-        (do (Parser $ cdvTerm $ n+1) `chainl1`
-                (do s <- Parser $ cpSymbol (infixlSymbols!!0!!0)
-                    return (\x y->ExpApplication (ExpName $ symbolName s) x y)))
+    cpTerm 20 = parser $
+        (ExpName <$> Parser cdvName) </>
+        (ExpNumberLiteral <$> Parser cdvNumberLiteral) </>
+        (ExpStringLiteral <$> Parser cdvStringLiteral) </>
+        (ExpCharLiteral <$> Parser cdvCharLiteral) </>
+        (sandwich (char' '(') (char' ')') (Parser cdvExpression))
+
+    cpTerm n = parser $ case l of
+        [] -> Parser cpRTerm
+        _  -> (Parser cpRTerm) `chainl1` (ExpBinarySymbol <$> (choice $ map string' l))
+        where
+            l = infixlSymbols!!n
+            cpRTerm = parser $ case l of
+                [] -> Parser cpPTerm
+                _  -> (Parser cpPTerm) `chainr1` (ExpBinarySymbol <$> (choice $ map string' l))
+                where l = prefixSymbols!!n
+            cpPTerm = parser $ case l of
+                [] -> Parser cpSTerm
+                _  -> do ss <- many (choice $ map string' l)
+                         t <- Parser $ cpSTerm
+                         return $ foldr ExpPrefixUnarySymbol t ss
+                where l = prefixSymbols!!n
+            cpSTerm = parser $ case l of
+                [] -> p
+                _  -> do t <- p
+                         ss <- many (choice $ map string' l)
+                         return $ foldl (\t s->ExpSuffixUnarySymbol s t) t ss
+                where l = suffixSymbols!!n
+                      p = Parser $ cdvTerm $ n+1
 
     ---- Statement ----
 
     cpStatement = parser (
         (do e <- Parser cdvExpression
-            Parser $ cpSymbol ";"
+            char' ';'
             return $ SttSingle e) </>
-        (do Parser $ cpSymbol "{"
+        (do char' '{'
             ss <- many $ Parser cpStatement
-            Parser $ cpSymbol "}"
+            char' '}'
             return $ SttBlock ss))
 
     ---- Type ----
     
-    cpTypeTerm = parser (
-        (do TypName <$> Parser cdvName) </>
-        (do Parser $ cpSymbol "("
-            t <- Parser cpType
-            Parser $ cpSymbol ")"
-            return t) </>
-        (do Parser $ cpSymbol "("
-            ts <- (Parser cpType) `sepBy` (Parser $ cpSymbol ",")
-            Parser $ cpSymbol ")"
+    cpTypeTerm = parser $
+        (TypName <$> Parser cdvName) </>
+        (sandwich (char' '(') (char' ')') (Parser cpType)) </>
+        (do ts <- sandwichSep (char' '(') (char' ')') (char' ',') (Parser cpType)
             return $ TypTuple ts) </>
-        (do Parser $ cpSymbol "["
-            ts <- (Parser cpType) `sepBy` (Parser $ cpSymbol ",")
-            Parser $ cpSymbol "]"
-            return $ TypList ts))
+        (do ts <- sandwichSep (char' '[') (char' ']') (char' ',') (Parser cpType)
+            return $ TypList ts)
 
     cpType = parser
         (do (Parser cpTypeTerm) `chainr1`
-                (do Parser $ cpSymbol "->"
+                (do string' "->"
                     return (\x y->TypFunction x y)))
 
     ---- Template ----
 
     cpTemplateList = parser
-        (do string "!("
-            ts<-(Parser cdvType)`sepBy1`(char '\'')
-            string ")"
-            return ts)
+        (sandwichSep (string' "!(") (char' ')') (char ',')
+            (Parser cdvType))
 
     ---- Pattern ----
 
-    cpPattern = parser
-        (do return $ PatName "")
+    cpPattern = parser $
+        (PatName <$> Parser cdvName) </>
+        (do sandwich (char' '(') (char' ')')
+                (Parser cdvPattern)) </>
+        (do ps <- sandwichSep (char' '(') (char' ')') (char ',')
+                (Parser cdvPattern)
+            return$  PatTuple ps)
 
     ---- Function ----
 
     cpFunctionDeclaration = parser
-        (do Parser $ cpKeyword "function"
+        (do string' "function"
             n <- Parser cdvName
-            Parser $ cpSymbol "::"
+            string' "::"
             t <- Parser cdvType
-            return $ FDec n t)
+            ds <-
+                (do string' "{"
+                    ds <- many $ Parser cpFunctionDefinition
+                    string' "}"
+                    return ds)
+            return $ (TokFunctionDeclaration (FDec n t)):ds)
 
     cpFunctionDefinition = parser
         (do n <- Parser cdvName
-            p <- Parser cdvPattern
-            return [])
+            ps <- many $ Parser cdvPattern
+            string' "="
+            s <- Parser cdvStatement
+            return $ TokFunctionDefinition (FDef n ps s))
 
     ---- Data ----
     

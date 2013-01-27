@@ -54,11 +54,17 @@ simply :: Derivs d => Parser d String -> Parser d String
 simply p = p >> return ""
 
 many1', many' :: Derivs d => Parser d String -> Parser d [String]
-many1' p = (do { v <- p; vs <- many1' p; return $ v:"\n":vs } )
-many' p = (do { v <- p; vs <- many' p; return $ v:"\n":vs } ) </> return []
+many1' p = do { v <- p; vs <- many1' p; return $ v:"\n":vs }
+many' p = do { v <- p; vs <- many' p; return $ v:"\n":vs } </> return []
 
 single :: Derivs d => Parser d t -> Parser d [t]
 single p = p >>= (\x->return [x])
+
+sandwich :: Derivs d => Parser d a -> Parser d b -> Parser d t -> Parser d t
+sandwich x y p = do {x;r<-p;y;return r}
+sandwichSep, sandwichSep1 :: Derivs d => Parser d a -> Parser d b -> Parser d c -> Parser d t -> Parser d [t]
+sandwichSep x y s p = do {x;r<-(p `sepBy` s);y;return r}
+sandwichSep1 x y s p = do {x;r<-(p `sepBy1` s);y;return r}
 
 instance (Derivs d ) => Functor (Parser d) where
     fmap f p = p>>=(\x->return $ f x)
