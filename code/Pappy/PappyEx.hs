@@ -42,13 +42,13 @@ getIndent s = getPosLine >>= \n->return (indentsOf s !! n)
 getPosLine :: Derivs d => Parser d Int
 getPosLine = getPos >>= \p->return (posLine p-1)
 
-infixl 3 <&>,<&&>
-(<&>),(<&&>) :: Derivs d => Parser d String -> Parser d String -> Parser d String
-p1 <&> p2 = do{s1<-p1;s2<-p2;return $ s1++s2}
-p1 <&&> p2 = do{s1<-p1;s2<-p2;return $ s1++"\n"++s2}
+infixl 3 <++>
+(<++>) :: Derivs d => Parser d String -> Parser d String -> Parser d String
+p1 <++> p2 = do{s1<-p1;s2<-p2;return$s1++s2}
 
-optional' :: Derivs d => Parser d [v] -> Parser d [v]
-optional' p = Pappy.Parse.optional p >>= \x->return $ case x of{Just s->s;Nothing->[]}
+infixl 3 <|~|>
+(<|~|>) :: Derivs d => Parser d a -> Parser d b -> Parser d (a,b)
+p1 <|~|> p2 = do{x1<-p1;x2<-p2;return(x1,x2)}
 
 simply :: Derivs d => Parser d String -> Parser d String
 simply p = p >> return ""
@@ -66,5 +66,8 @@ sandwichSep, sandwichSep1 :: Derivs d => Parser d a -> Parser d b -> Parser d c 
 sandwichSep x y s p = do {x;r<-(p `sepBy` s);y;return r}
 sandwichSep1 x y s p = do {x;r<-(p `sepBy1` s);y;return r}
 
-instance (Derivs d ) => Functor (Parser d) where
+instance (Derivs d) => Functor (Parser d) where
     fmap f p = p>>=(\x->return $ f x)
+instance (Derivs d) => Applicative (Parser d) where
+    pure = return
+    p1 <*> p2 = p1 >>= (\f->f<$>p2)
