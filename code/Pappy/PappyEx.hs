@@ -2,10 +2,16 @@ module Pappy.PappyEx where
 import Data.Char
 import Pappy.Pos
 import Pappy.Parse
-import Control.Applicative
+import Control.Applicative hiding (many)
 
 type LargeParseFunc d = Pos -> String -> d
 type ParseFunc d v = d -> Result d v
+
+instance (Derivs d) => Functor (Parser d) where
+    fmap f p = p>>=(\x->return $ f x)
+instance (Derivs d) => Applicative (Parser d) where
+    pure = return
+    p1 <*> p2 = p1 >>= (\f->f<$>p2)
 
 autochar prs pos s = case s of
                     (c:s') -> Parsed c (prs (nextPos pos c) s') (nullError d)
@@ -66,8 +72,30 @@ sandwichSep, sandwichSep1 :: Derivs d => Parser d a -> Parser d b -> Parser d c 
 sandwichSep x y s p = do {x;r<-(p `sepBy` s);y;return r}
 sandwichSep1 x y s p = do {x;r<-(p `sepBy1` s);y;return r}
 
-instance (Derivs d) => Functor (Parser d) where
-    fmap f p = p>>=(\x->return $ f x)
-instance (Derivs d) => Applicative (Parser d) where
-    pure = return
-    p1 <*> p2 = p1 >>= (\f->f<$>p2)
+parseOperators :: Derivs d => Parser d r -> [[Parser d (r->r->r)]] -> [[Parser d (r->r->r)]] -> [[Parser d (r->r)]] -> [[Parser d (r->r)]] -> Parser d r
+parseOperators min [] [] [] [] = min
+parseOperators min infixls infixrs prefixs suffixs = Parser pLTerm
+    where
+        head' [] = []
+        head' l = head l
+        tail' [] = []
+        tail' l = tail l
+        next = parseOperators min (tail' infixls) (tail' infixrs) (tail' prefixs) (tail' suffixs)
+        pLTerm = parser $ case head' infixls of
+            [] -> Parser pRTerm
+            l -> (Parser pRTerm) `chainl1` (choice l)
+        pRTerm = parser $ case head' infixrs of
+            [] -> Parser pPTerm
+            l -> (Parser pPTerm) `chainr1` (choice l)
+        pPTerm = parser $ case head' prefixs of
+            [] -> Parser pSTerm
+            l -> do ss <- many (choice l)
+                    t <- Parser pSTerm
+                    return $ foldr ($) t ss
+        pSTerm = parser $ case head' suffixs of
+            [] -> next
+            l -> do t <- next
+                    ss <- many (choice l)
+                    return $ foldl (flip ($)) t ss
+
+

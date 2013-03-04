@@ -1,7 +1,6 @@
 module HashToken where
 
-type Namespace = String
-type Name = String
+data Name = Name {name::String} deriving (Eq, Show, Read)
 type Literal = String
 type Symbol = String
 
@@ -14,7 +13,7 @@ data TemplateApplication = TAType Type
     deriving (Eq, Show, Read)
 type TemplateApplicationList = [TemplateApplication]
 
-data Type = TypName (Maybe Namespace) Name
+data Type = TypName Name
           | TypApplication Type TemplateApplicationList
           | TypConst Type
           | TypPointer Type
@@ -61,7 +60,7 @@ data Pattern = PatName Name
     deriving (Eq, Show, Read)
 
 type ArgumentList = [(Type,Maybe (Name,Maybe Expression))]
-data FunctionDeclaration = FDec (Maybe TemplateDefinitionList) Type Name [ArgumentList] deriving (Eq, Show, Read)
+data FunctionDeclaration = FDec (Maybe TemplateDefinitionList) Type Name ArgumentList deriving (Eq, Show, Read)
 data FunctionDefinition = FDef FunctionDeclaration Statement deriving (Eq, Show, Read)
 
 data VariantDeclaration = VDec Type Name deriving (Eq, Show, Read)

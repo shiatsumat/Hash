@@ -1,0 +1,7 @@
+#include <cstdio>
+/*a*/
+std::vector& a((int,char) x,[int] b)=10;
+/*a*/
+extern int a;
+(char,const int)->float a = 10;
+/*a*/
