@@ -1,15 +1,29 @@
+#pragma once
 #include <cstdio>
-//a
-class A{
-    static_assert(Hash::has_nothrow_assign<A>::value,"DOESN'T MATCH TYPE CONDITION");
-    static_assert(Hash::is_same<T, O>::value,"DOESN'T MATCH TYPE CONDITION");
-    static_assert(10,"DOESN'T MATCH STATIC CONDITION");
-    )private: int a;
-    private: int b;
+//let's programming
+////with Hash
+//with a lot of fun
+//éûÅXì˙ñ{åÍ
+template<typename T>class A{
+    static_assert(Hash::is_pod<T>::value,"DOESN'T MATCH TYPE CONDITION");
+    static_assert((10)<(20),"DOESN'T MATCH STATIC CONDITION");
+    private: A(){
+    }
+    private: ~A(){
+    }
 };
-int main(){
-    a:
-    (return)=(x);
+enum class X :int {
+    a = 1, b = 2, c = 4, d = 8
+};
+int main()const{
+    int a = 0;
+    extern a = 0;
+    int f(){
+        ;
+    }
 }
-int<T> a = 0;
-Hash::function<char, const int, Hash::function<Hash::List<int>, float>> a = 10;
+int a(){
+    return 10;
+}
+int *&&a = 0, *&&b;
+Hash::function<char, const unsigned int, Hash::function<Hash::List<int>, float>> a = 10;
