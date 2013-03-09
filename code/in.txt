@@ -1,7 +1,22 @@
+#pragma once
 #include <cstdio>
-/*a*/
-std::vector& a((int,char) x,[int] b)=10;
-/*a*/
-extern int a;
-(char,const int)->float a = 10;
-/*a*/
+
+/*let's programming/*with Hash*/with a lot of fun*/
+/*X“ú–{Œê*/
+
+class A<T> where T :is: pod, 10<20
+{
+	A(){}
+	~A(){}
+}
+
+bitenum class X:int{a,b,c,d}
+
+int main()const{
+	int a=0;
+	extern a=0;
+	int f(){;}
+}
+int a() = 10;
+int*&& a=0,b;
+(char,const unsigned int)->[int]->float a = 10;

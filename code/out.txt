@@ -1,0 +1,15 @@
+#include <cstdio>
+//a
+class A{
+    static_assert(Hash::has_nothrow_assign<A>::value,"DOESN'T MATCH TYPE CONDITION");
+    static_assert(Hash::is_same<T, O>::value,"DOESN'T MATCH TYPE CONDITION");
+    static_assert(10,"DOESN'T MATCH STATIC CONDITION");
+    )private: int a;
+    private: int b;
+};
+int main(){
+    a:
+    (return)=(x);
+}
+int<T> a = 0;
+Hash::function<char, const int, Hash::function<Hash::List<int>, float>> a = 10;

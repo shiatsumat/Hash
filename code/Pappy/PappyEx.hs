@@ -56,6 +56,9 @@ infixl 3 <|~|>
 (<|~|>) :: Derivs d => Parser d a -> Parser d b -> Parser d (a,b)
 p1 <|~|> p2 = do{x1<-p1;x2<-p2;return(x1,x2)}
 
+check :: Derivs d => Parser d t -> Parser d Bool
+check p = (p >> return True) </> (return False)
+
 simply :: Derivs d => Parser d String -> Parser d String
 simply p = p >> return ""
 

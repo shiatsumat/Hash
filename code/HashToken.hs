@@ -3,19 +3,17 @@ module HashToken where
 data Name = Name {name::String} deriving (Eq, Show, Read)
 type Literal = String
 type Symbol = String
+data WriteModifier = Const | Mutable | NoWM deriving (Eq, Show, Read)
 
-data TemplateDefinition = TDType Type
-                        | TDVar Type Name
-    deriving (Eq, Show, Read)
-type TemplateDefinitionList = [TemplateDefinition]
-data TemplateApplication = TAType Type
-                        | TAExp Expression
-    deriving (Eq, Show, Read)
-type TemplateApplicationList = [TemplateApplication]
+data TemplateDefinitionList = TDL [(Type,Maybe Name)] deriving (Eq, Show, Read)
+data TemplateApplicationList = TAL [Either Type Expression] deriving (Eq, Show, Read)
 
 data Type = TypName Name
+          | TypSigned Name
+          | TypUnsigned Name
           | TypApplication Type TemplateApplicationList
           | TypConst Type
+          | TypMutable Type
           | TypPointer Type
           | TypReference Type
           | TypRvalueReference Type
@@ -24,30 +22,42 @@ data Type = TypName Name
           | TypTuple [Type]
           | TypList Type
           | TypAuto
+          | TypDecltype Expression
+          | TypNothing
     deriving (Eq, Show, Read)
 
-data Statement = SttSingle Expression
-               | SttBlock [Statement]
-               | SttControlFlow Name Expression Statement
-               | SttFor Expression Expression Expression Statement
-               | SttReturn Expression
-               | SttGoto Name
-               | SttContinue
-               | SttBreak
-               | SttIf Expression Statement Statement
-    deriving (Eq, Show, Read)
 data Expression = ExpName Name
                 | ExpSymbol Symbol
                 | ExpNumberLiteral Literal
                 | ExpStringLiteral Literal
                 | ExpCharLiteral Literal
                 | ExpApplication Expression [Expression]
+                | ExpTuple [Expression]
+                | ExpUnit
+                | ExpList [Expression]
                 | ExpBinarySymbol Symbol Expression Expression
                 | ExpPrefixUnarySymbol Symbol Expression
                 | ExpSuffixUnarySymbol Symbol Expression
-                | ExpIf Expression Expression Expression -- a?b:c
-                | ExpLambda [ArgumentList] Statement
-                | ExpStatement
+                | ExpIf Expression Expression Expression
+                | ExpLambda (Maybe Type) ArgumentList Statement
+                | ExpStatement Statement
+                | ExpNothing
+    deriving (Eq, Show, Read)
+
+
+data Statement = SttEmpty
+               | SttSingle Expression
+               | SttBlock [Token]
+               | SttControlFlow String (Either Expression VariantDefinition) Statement
+               | SttFor (Either Expression VariantDefinition) Expression Expression Statement
+               | SttSwitch Expression ([Expression],Statement)
+               | SttReturn Expression
+               | SttGoto Name
+               | SttContinue
+               | SttBreak
+               | SttIf (Either Expression VariantDefinition) Statement (Maybe Statement)
+               | SttWhite [Token] Statement
+               | SttNothing
     deriving (Eq, Show, Read)
 
 data Pattern = PatName Name
@@ -59,40 +69,50 @@ data Pattern = PatName Name
              | PatAs Name Pattern
     deriving (Eq, Show, Read)
 
-type ArgumentList = [(Type,Maybe (Name,Maybe Expression))]
-data FunctionDeclaration = FDec (Maybe TemplateDefinitionList) Type Name ArgumentList deriving (Eq, Show, Read)
-data FunctionDefinition = FDef FunctionDeclaration Statement deriving (Eq, Show, Read)
-
 data VariantDeclaration = VDec Type Name deriving (Eq, Show, Read)
-data VariantDefinition = VDef Type Name (Maybe Expression) deriving (Eq, Show, Read)
+data VariantDefinition = VDef Type [(Name,Maybe Expression)] deriving (Eq, Show, Read)
 
-{-
-data DataType = Struct | Class deriving (Eq, Show, Read)
-data AccessModifier = Private | Public | Protected deriving (Eq, Show, Read)
-data DataHeader = DHdr DataType Name [Template] [(AccessModifier, Type)] deriving (Eq, Show, Read)
-data DataDeclaration = DDec
-    DataHeader
-    [(AccessModifier, VariantDeclaration)]
-    [(AccessModifier, FunctionDeclaration)]
-    [(AccessModifier, TypeAliasDeclaration)]
+data ArgumentList = AList [(Type,Maybe (Name,Maybe Expression))] WriteModifier deriving (Eq, Show, Read)
+data FunctionDeclaration = FDec (Maybe TemplateDefinitionList) Type Name ArgumentList
     deriving (Eq, Show, Read)
+data FunctionDefinition = FDef FunctionDeclaration Statement
+                        | FDefC FunctionDeclaration [Expression] Statement
+    deriving (Eq, Show, Read)
+
+data DataType = Struct | Class deriving (Eq, Show, Read)
+data AccessModifier = Private | Public | Protected | Default deriving (Eq, Show, Read)
+data DataWhere = DWSame Type Type
+               | DWBase Type Type
+               | DWTypeIs Type String
+               | DWTypeHas Type String
+               | DWExpression Expression
+    deriving (Eq, Show, Read)
+data DataHeader = DH (Maybe TemplateDefinitionList) DataType Name [(AccessModifier, Type)] [DataWhere] deriving (Eq, Show, Read)
+data DataDefinition = DDef
+    DataHeader
+    [(AccessModifier, Token)]
+    deriving (Eq, Show, Read)
+
+type EnumBit = Bool
+type EnumStrong = Bool
+data EnumData = ED EnumBit EnumStrong Name (Maybe Type) [(Name,Maybe Expression)] deriving (Eq, Show, Read)
 
 data AlgebraicData = AD [(Name, [(Type, Name)])] deriving (Eq, Show, Read)
 
-data TypeAlias = TA Name [Template] Type deriving (Eq, Show, Read)
--}
+data TypeAlias = TA Name Type deriving (Eq, Show, Read)
 
 data Token = TokVDec VariantDeclaration
            | TokVDef VariantDefinition
            | TokFDec FunctionDeclaration
            | TokFDef FunctionDefinition
-           {-
-           | TokDataDeclaration DataDeclaration
-           | TokTypeAliasDeclaration TypeAliasDeclaration
-           -}
+           | TokDDef DataDefinition
+           | TokED EnumData
            | TokComment String
            | TokCppCompilerDirective String
            | TokHashCompilerDirective String
-           | Tok String
+           | TokLabel Name
+           | TokStatement Statement
+           | TokEmpty
+           | TokError String
     deriving (Eq, Show, Read)
 

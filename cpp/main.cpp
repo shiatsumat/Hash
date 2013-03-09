@@ -1,8 +1,19 @@
 #include <cstdio>
 #include <algorithm>
+#include <type_traits>
 
+class a {
+	template <typename T>
+	a(T x){}
+};
+
+int x=10;
+enum E{E1=1,E2=2,E3=4};
 int main()
 {
-	printf("%d\n",(1*2));
-	return 0;
+	int a,&b=a,**c,**&d=c, &&f=10;
+	extern int x;
+	printf("%d\n",[&](){return 10;}(),10);
+	[&](){};
+	if(1&E1&E2) return 0;
 }
