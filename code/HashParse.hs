@@ -121,13 +121,14 @@ whiteChar = " \t\n\r"
 ---- parse data ----
 
 data CodeDerivs = CodeDerivs {
-        cdvCode,cdvWhiteStuff,cdvWhiteStuff1 :: Result CodeDerivs [Token],
+        cdvCode :: Result CodeDerivs Tokens,
+        cdvWhiteStuff,cdvWhiteStuff1 :: Result CodeDerivs [Token],
         cdvName, cdvSimpleName :: Result CodeDerivs Name,
         cdvComment,cdvNComment,cdvNumberLiteral,cdvCharLiteral,cdvStringLiteral :: Result CodeDerivs String,
         cdvCppCompilerDirective :: Result CodeDerivs Token,
         cdvType :: Result CodeDerivs Type,
         cdvPattern :: Result CodeDerivs Pattern,
-        cdvStatement :: Result CodeDerivs Statement,
+        cdvStatement,cdvBlock :: Result CodeDerivs Statement,
         cdvExpression, cdvExpressionTemplate :: Result CodeDerivs Expression,
         cdvArgumentList :: Result CodeDerivs ArgumentList,
         cdvTemplateDefinitionList :: Result CodeDerivs TemplateDefinitionList,
@@ -152,8 +153,9 @@ parse' a pos s = d where
         (cpName d) (cpSimpleName d)
         (cpComment d) (cpNComment d) (cpNumberLiteral d) (cpCharLiteral d) (cpStringLiteral d)
         (cpCppCompilerDirective d)
-        (cpType d) (cpPattern d)
-        (cpStatement d)
+        (cpType d)
+        (cpPattern d)
+        (cpStatement d) (cpBlock d)
         (cpExpression d) (cpExpressionTemplate d)
         (cpArgumentList d)
         (cpTemplateDefinitionList d) (cpTemplateApplicationList d)
@@ -161,7 +163,7 @@ parse' a pos s = d where
     
     ---- Basic ----
 
-    cpCode = parser $ concat <$> (many (
+    cpCode = parser $ Tokens <$> concat <$> (many (
                 (Parser cdvWhiteStuff1) </>
                 single (Parser cdvCppCompilerDirective) </>
                 single (Parser cpVariantDeclarationToken) </>
@@ -296,7 +298,7 @@ parse' a pos s = d where
         do char' '\\'
            a <- Parser cdvArgumentList
            t <- optional $ Parser cdvType <* string' "->"
-           s <- Parser cdvStatement
+           s <- Parser cpBlock'
            return $ ExpLambda t a s
 
     cpExpressionMin = parser $
@@ -321,13 +323,13 @@ parse' a pos s = d where
         (ExpTuple <$> (parenSep $ Parser cpExpression)) </>
         (paren (return ExpUnit)) </>
         (ExpList <$> (bracketSep $ Parser cpExpression)) </>
-        (ExpStatement <$> Parser cpBlock)
+        (ExpStatement <$> Parser cdvBlock)
 
     ---- Statement ----
-    
+
     cpBlock = parser $
         do char' '{'
-           ss <- concat <$> (many $
+           ss <- Tokens <$> concat <$> (many $
                     (Parser cdvWhiteStuff1) </>
                     single (Parser cpVariantDeclarationToken) </>
                     single (Parser cpVariantDefinitionToken) </>
@@ -336,6 +338,21 @@ parse' a pos s = d where
                     single (Parser cpStatementToken))
            char' '}'
            return $ SttBlock ss
+
+    cpBlock' = parser $
+        do char' '{'
+           ss <- Tokens <$> (++[TokStatement $ SttReturn ExpUnit]) <$>
+                    concat <$> (many $
+                    (Parser cdvWhiteStuff1) </>
+                    single (Parser cpVariantDeclarationToken) </>
+                    single (Parser cpVariantDefinitionToken) </>
+                    single (Parser cpFunctionDeclarationToken) </>
+                    single (Parser cpFunctionDefinitionToken) </>
+                    single (Parser cpStatementToken))
+           char' '}'
+           return $ SttBlock ss
+        </>
+        Parser cdvBlock
     {-
     cpCase = parser $
         do many1 (char' '|' >> Parser cdvExpression)
@@ -347,10 +364,8 @@ parse' a pos s = d where
            return SttSwitch e
     -}
 
-    cpStatement = parser $
-        Parser cpBlock </>
-        sandwich (string' "return") (char' ';') (SttReturn <$> Parser cdvExpression) </>
-        ((string' "return") >> (char' ';') >> return (SttReturn ExpNothing)) </>
+    cpStatementNoReturn = parser $
+        Parser cdvBlock </>
         sandwich (string' "goto") (char' ';') (SttGoto <$> Parser cdvSimpleName) </>
         (string' "continue" >> char' ';' >> return SttContinue) </>
         (string' "break" >> char' ';' >> return SttBreak) </>
@@ -380,7 +395,10 @@ parse' a pos s = d where
         do e <- Parser cdvExpression
            char' ';'
            return $ SttSingle e
-
+    cpStatement = parser $
+        sandwich (string' "return") (char' ';') (SttReturn <$> Parser cdvExpression) </>
+        ((string' "return") >> (char' ';') >> return (SttReturn ExpNothing)) </>
+        Parser cpStatementNoReturn
     cpStatementToken = parser $
         TokStatement <$> Parser cdvStatement
 
@@ -401,14 +419,16 @@ parse' a pos s = d where
         (TypApplication <$> Parser cpTypeMinMin <*> Parser cdvTemplateApplicationList) </>
         (string' "var" >> return TypAuto) </>
         (string' "val" >> return (TypConst TypAuto)) </>
+        (string' "ref" >> return (TypReference TypAuto)) </>
+        (string' "rref" >> return (TypRvalueReference TypAuto)) </>
         (string' "decltype" >> TypDecltype <$> paren (Parser cdvExpression) ) </>
         Parser cpTypeMinMin
 
     cpTypeMinMin = parser $
+        (paren (Parser cdvType)) </>
         (string' "signed" >> TypSigned <$> Parser cdvName) </>
         (string' "unsigned" >> TypUnsigned <$> Parser cdvName) </>
         (TypName <$> Parser cdvName) </>
-        (paren (Parser cdvType)) </>
         (TypTuple <$> parenSep (Parser cdvType)) </>
         (TypList <$> bracket (Parser cdvType))
 
@@ -418,7 +438,7 @@ parse' a pos s = d where
             infixrs = [[string' "->">>return TypFunction]]
             prefixs = [[string' "const">>return TypConst,
                         string' "mutable">>return TypMutable]]
-            suffixs = [[char' '*'>>return TypPointer,string' "&&">>return TypRvalueReference,char' '&'>>return TypReference]]
+            suffixs = [[char' '!'>>return TypConst,char' '*'>>return TypPointer,string' "&&">>return TypRvalueReference,char' '&'>>return TypReference]]
 
     ---- Variant ----
 
@@ -463,11 +483,11 @@ parse' a pos s = d where
     cpFunctionDeclarationToken = parser $ TokFDec <$> Parser cpFunctionDeclaration
 
     cpFunctionBody = parser $
-        Parser cpBlock </>
+        Parser cdvBlock </>
         do char' '='
            e <- Parser cdvExpression
            char' ';'
-           return $ SttBlock [TokStatement(SttReturn e)]
+           return $ SttBlock $ Tokens [TokStatement(SttReturn e)]
     cpFunctionDefinition = parser $
         FDef <$> Parser cpFunctionHeader <*> Parser cpFunctionBody
     cpFunctionDefinitionToken = parser $ TokFDef <$> Parser cpFunctionDefinition

@@ -30,7 +30,6 @@ parenSep ss = paren $ ss `sep` ", "
 bracket s = "["++s++"]"
 bracketSep ss = bracket $ ss `sep` ", "
 brace s = "{"`line`indent(s)++"}"
-braceSep ss = brace $ (ss `sep` "")
 angle s = "<"++s++">"
 angleSep ss = angle $ ss `sep` ", "
 
@@ -38,6 +37,9 @@ angleSep ss = angle $ ss `sep` ", "
 
 class Interpret a where
     interpret :: a -> String
+
+class Declare a where
+    declare :: a -> String
 
 interpretanyway (Left a) = interpret a
 interpretanyway (Right a) = interpret a
@@ -54,11 +56,12 @@ instance Interpret Type where
     interpret (TypUnsigned n) = "unsigned "++interpret n
     interpret (TypApplication t as) = interpret t ++ interpret as
     interpret (TypConst t) = "const"`space`interpret t
+    interpret (TypMutable t) = "mutable"`space`interpret t
     interpret (TypPointer t) = interpret t ++ "*"
     interpret (TypReference t) = interpret t ++ "&"
     interpret (TypRvalueReference t) = interpret t ++ "&&"
-    interpret (TypFunction (TypTuple ts) t2) = "Hash::function"++angleSep[justSep $ map interpret ts,interpret t2]
-    interpret (TypFunction t1 t2) = "Hash::function"++angleSep [interpret t1,interpret t2]
+    interpret (TypFunction (TypTuple ts) t2) = "Hash::Function"++angleSep[justSep $ map interpret ts,interpret t2]
+    interpret (TypFunction t1 t2) = "Hash::Function"++angleSep [interpret t1,interpret t2]
     interpret (TypArray t (-1)) = interpret t ++ "[]"
     interpret (TypArray t n) = interpret t ++ "[" ++ interpret n ++ "]"
     interpret (TypTuple ts) = "Hash::Tuple" ++ angleSep (map interpret ts)
@@ -89,7 +92,7 @@ instance Interpret Expression where
 instance Interpret Statement where
     interpret SttEmpty = ";"
     interpret (SttSingle e) = (interpret e)++";"
-    interpret (SttBlock ss) = braceSep (map interpret ss)
+    interpret (SttBlock ts) = brace (interpret ts)
     interpret (SttControlFlow "while" e s) = "while" ++ paren (interpretanyway e) ++ interpret s
     interpret (SttControlFlow "until" (Left e) s) = "while" ++ paren ("!"++paren (interpret e)) ++ interpret s
     interpret (SttControlFlow "dowhile" e s) = "do" ++ interpret s ++ "while" ++ paren (interpretanyway e) ++ ";"
@@ -108,6 +111,7 @@ instance Interpret Statement where
     interpret (SttWhite w s) = concatMap interpret w ++ interpret s
 interpretblock :: Statement -> String
 interpretblock s@(SttBlock _) = interpret s
+
 interpretblock s = brace $ interpret s
 
 instance Interpret TemplateDefinitionList where
@@ -127,6 +131,9 @@ instance Interpret VariantDefinition where
     interpret (VDef t ns) = interpret (fst(typesuffix t))`space`justSep (map variant ns)
         where variant (n,Just e) = snd(typesuffix t)++interpret n++" = "++interpret e
               variant (n,Nothing) = snd(typesuffix t)++interpret n
+instance Declare VariantDefinition where
+    declare (VDef t ns) = "extern "++interpret (fst(typesuffix t))`space`justSep (map variant ns)
+        where variant (n,_) = snd(typesuffix t)++interpret n
 
 instance Interpret WriteModifier where
     interpret Const = "const"
@@ -148,6 +155,9 @@ instance Interpret FunctionDefinition where
     interpret (FDef f s) = interpret f ++ interpretblock s ++ "\n"
     interpret (FDefC f [] s) = interpret f ++ interpretblock s ++ "\n"
     interpret (FDefC f i s) = interpret f`line`indent (":"++justSep(map interpret i))++interpretblock s ++ "\n"
+instance Declare FunctionDefinition where
+    declare (FDef f _) = interpret f++";\n"
+    declare (FDefC f _ _) = interpret f++";\n"
 
 instance Interpret DataType where
     interpret Struct = "struct"
@@ -174,12 +184,15 @@ instance Interpret DataWhere where
     interpret (DWExpression e) = "static_assert("++interpret e++",\"DOESN'T MATCH STATIC CONDITION\");\n"
 
 instance Interpret DataDefinition where
-    interpret (DDef h@(DH _ t _ _ w) m) = interpret h ++ braceSep(
+    interpret (DDef h@(DH _ t _ _ w) m) = interpret h ++ brace(concat(
         map interpret w ++
-        map (\(a,t)->modify a++interpret t) m) ++ ";\n"
+        map (\(a,t)->modify a++interpret t) m)) ++ ";\n"
         where modify Default | t==Struct = "public: "
                              | t==Class = "private: "
               modify a = interpret a++": "
+instance Declare DataDefinition where
+    declare (DDef (DH (Just l) t n _ _) _) = interpret l`line`interpret t`space`interpret n++";\n"
+    declare (DDef (DH Nothing t n _ _) _) = interpret t`space`interpret n++";\n"
 
 instance Interpret EnumData where
     interpret (ED False s n t m) = "enum "++(if s then"class "else"")++interpret n++basetype t++brace(justSep $ map member m)++";\n"
@@ -209,6 +222,19 @@ instance Interpret Token where
     interpret TokEmpty = ";\n"
     interpret (TokError s) = s
 
+instance Declare Token where
+    declare (TokVDef x) = declare x ++ ";\n"
+    declare (TokFDef x) = declare x
+    declare (TokDDef x) = declare x
+    declare _ = ""
+
+instance Interpret Tokens where
+    interpret (Tokens ts) = concatMap interpret f ++ concatMap declare ts' ++ concatMap interpret ts'
+        where first (TokCppCompilerDirective s) = True
+              first _ = False
+              ts' = filter (not.first) ts
+              f = filter first ts
+
 compile :: String->String
-compile = concatMap interpret . eval
+compile = interpret . eval
 

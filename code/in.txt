@@ -17,6 +17,6 @@ int main()const{
 	extern a=0;
 	int f(){;}
 }
-int a() = 10;
+int a<T>() = 10;
 int*&& a=0,b;
 (char,const unsigned int)->[int]->float a = 10;

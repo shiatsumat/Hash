@@ -2,9 +2,11 @@
 #include <algorithm>
 #include <type_traits>
 
-class a {
+class B{};
+class A;
+class A : B{
 	template <typename T>
-	a(T x){}
+	A(T x){}
 };
 
 int x=10;

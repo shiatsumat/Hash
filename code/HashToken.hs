@@ -47,7 +47,7 @@ data Expression = ExpName Name
 
 data Statement = SttEmpty
                | SttSingle Expression
-               | SttBlock [Token]
+               | SttBlock Tokens
                | SttControlFlow String (Either Expression VariantDefinition) Statement
                | SttFor (Either Expression VariantDefinition) Expression Expression Statement
                | SttSwitch Expression ([Expression],Statement)
@@ -87,6 +87,7 @@ data DataWhere = DWSame Type Type
                | DWTypeHas Type String
                | DWExpression Expression
     deriving (Eq, Show, Read)
+data DataDeclaration = DDec (Maybe TemplateDefinitionList) DataType Name deriving (Eq, Show, Read)
 data DataHeader = DH (Maybe TemplateDefinitionList) DataType Name [(AccessModifier, Type)] [DataWhere] deriving (Eq, Show, Read)
 data DataDefinition = DDef
     DataHeader
@@ -105,6 +106,7 @@ data Token = TokVDec VariantDeclaration
            | TokVDef VariantDefinition
            | TokFDec FunctionDeclaration
            | TokFDef FunctionDefinition
+           | TokDDec DataDeclaration
            | TokDDef DataDefinition
            | TokED EnumData
            | TokComment String
@@ -115,4 +117,6 @@ data Token = TokVDec VariantDeclaration
            | TokEmpty
            | TokError String
     deriving (Eq, Show, Read)
+
+data Tokens = Tokens [Token] deriving (Eq, Show, Read)
 
