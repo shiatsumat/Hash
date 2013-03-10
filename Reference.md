@@ -23,7 +23,6 @@
 		//c
 	/*/ ===> (nothing)
 	//a
-	</code></pre>
 
 ## Type
 
@@ -39,9 +38,9 @@
 	A&
 	A&&
 	A! ===> const A
-	A->B ===> Hash::Function&lt;A,B&gt;
-	(A,B) ===> Hash::Tuple&lt;A,B&gt;
-	[A] ===> Hash::List&lt;A&gt;
+	A->B ===> Hash::Function<A,B>
+	(A,B) ===> Hash::Tuple<A,B>
+	[A] ===> Hash::List<A>
 
 
 ## Name
@@ -100,7 +99,7 @@
 
 	R f(A x,B y);
 	R f(A x,B y){}
-	R f<T,int x>(){} ===> template&lt;typename T,int x&gt; R f(){}
+	R f<T,int x>(){} ===> template<typename T,int x> R f(){}
 	R f(A x,B y)=x; ===> R f(A x,B y){return x;}
 
 
@@ -114,7 +113,7 @@
 
 	class A{} ===> class A{};
 	class A{public int x;} ===> class A{public: int x;};
-	class A&lt;T,int x&gt;{} ===> template&lt;typename T,int x&gt; class A{};
+	class A<T,int x>{} ===> template<typename T,int x> class A{};
 	class A where c {} ===> class A{static_assert(...);};
 
 
@@ -122,9 +121,9 @@
 
 	where c1,c2 ===> static_assert(...);static_assert(...);
 	where a ===> static_assert(a,"DOESN'T MATCH STATIC CONDITION");
-	where A :=: B ===> static_assert(Hash::is_same&lt;A,B&gt;::value,"DOESN'T MATCH TYPE CONDITION");
-	where A :>: B ===> static_assert(Hash::is_base_of&lt;A,B&gt;::value,"DOESN'T MATCH TYPE CONDITION");
-	where A :<: B ===> static_assert(Hash::is_base_of&lt;B,A&gt;::value,"DOESN'T MATCH TYPE CONDITION");
-	where A :is: abstract ===> static_assert(Hash::is_abstract&lt;A&gt;::value,"DOESN'T MATCH TYPE CONDITION");
+	where A :=: B ===> static_assert(Hash::is_same<A,B>::value,"DOESN'T MATCH TYPE CONDITION");
+	where A :>: B ===> static_assert(Hash::is_base_of<A,B>::value,"DOESN'T MATCH TYPE CONDITION");
+	where A :<: B ===> static_assert(Hash::is_base_of<B,A>::value,"DOESN'T MATCH TYPE CONDITION");
+	where A :is: abstract ===> static_assert(Hash::is_abstract<A>::value,"DOESN'T MATCH TYPE CONDITION");
 	where A :has: nothrow_assign ===> static_assert(Hash::has_nothrow_assign<A>::value,"DOESN'T MATCH TYPE CONDITION");
 
