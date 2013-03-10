@@ -12,7 +12,7 @@
 
 * The grammar of Hash is quite similar to C++.
 * Expressions and statements are very similarly treated.
-* Every definition will be automatically pre-declared.
+* Every definition will be automatically declared forward.
 
 ## Comment
 
@@ -111,10 +111,11 @@
 
 ## Class/Struct
 
-	class A{} ===> class A{};
-	class A{public int x;} ===> class A{public: int x;};
-	class A<T,int x>{} ===> template<typename T,int x> class A{};
-	class A where c {} ===> class A{static_assert(...);};
+	class A{} ===> class A{typedef A thistype;};
+	class A{thistype(){}} ===> class A{...A(){}};
+	class A{public int x;} ===> class A{...public: int x;};
+	class A<T,int x>{} ===> template<typename T,int x> class A{...};
+	class A where c {} ===> class A{...static_assert(...);};
 
 
 ## Where

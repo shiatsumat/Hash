@@ -230,12 +230,16 @@ parse' a pos s = d where
     cpSimpleName' = parser $
         Name <$> single (optional (char' '@') >> Parser cpRawName')
     cpName = parser $
-        do ns <- many ((dename <$> Parser cdvSimpleName) >> (string' "::"))
+        (string' "thistype">>return ThisType) </>
+        do x <- (string' "::">>return [""])</>return []
+           ns <- many ((dename <$> Parser cdvSimpleName) <* (string' "::"))
            n <- dename <$> Parser cdvSimpleName
-           return $ Name $ ns++[n]
+           return $ Name $ x++ns++[n]
             where dename (Name [s]) = s
     cpName' = parser $
-        do ns <- many ((dename <$> Parser cdvSimpleName) >> (string' "::"))
+        (Parser cpRawName'`satisfy`(=="~thistype")>>return TildaThisType) </>
+        do x <- (string' "::">>return [""])</>return []
+           ns <- many ((dename <$> Parser cdvSimpleName) <* (string' "::"))
            n <- dename <$> Parser cpSimpleName'
            return $ Name $ ns++[n]
             where dename (Name [s]) = s

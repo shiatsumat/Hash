@@ -1,14 +1,14 @@
 class A<T> where T :is: pod, 10<20
 {
-	A(){}
-	~A(){}
+	thistype(thistype* x){}
+	~thistype(){}
 }
 
 bitenum class X:int{X1,X2,X3,X4}
 
 int main(){
 	signed int a=0;
-	printf("Hello");
+	::printf("Hello");
 	return 0;
 }
 int f<T>() = 10;

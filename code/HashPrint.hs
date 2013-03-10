@@ -90,6 +90,8 @@ instance Interpret Name where
     interpret (Name ns) = (map fix ns)`sep`"::"
         where fix s | s`elem`((cppReservedWords\\cppReservedTypes)\\cppReservedValues)= s++"NotReservedWord"
               fix s = s
+    interpret ThisType = "thistype"
+    interpret TildaThisType = "~thistype"
 
 instance Interpret Type where
     interpret (TypName n) = interpret n
@@ -210,7 +212,9 @@ instance Interpret AccessModifier where
     interpret Protected = "protected"
     interpret Default = ""
 instance Interpret DataHeader where
-    interpret (DH (Just l) t n i w) = interpret l++interpret (DH Nothing t n i w)
+    interpret (DH (Just l) t n i w) = interpret l`line`interpret t`space`interpret n++superclass i
+        where superclass [] = ""
+              superclass x = ": "++justSep(map (\(a,t)->interpret a`space`interpret t) x)
     interpret (DH Nothing t n i w) = interpret t`space`interpret n++superclass i
         where superclass [] = ""
               superclass x = ": "++justSep(map (\(a,t)->interpret a`space`interpret t) x)
@@ -226,12 +230,23 @@ instance Interpret DataWhere where
     interpret (DWExpression e) = "static_assert("++interpret e++",\"DOESN'T MATCH STATIC CONDITION\");\n"
 
 instance Interpret DataDefinition where
-    interpret (DDef h@(DH _ t _ _ w) m) = interpret h ++ brace(concat(
+    interpret (DDef h@(DH _ t n _ w) m) = interpret h ++ brace(thistype++concat(
         map interpret w ++
-        map (\(a,t)->modify a++interpret t) m)) ++ ";\n"
+        map (\(a,t)->modify a++member t) m)) ++ ";\n"
         where modify Default | t==Struct = "public: "
                              | t==Class = "private: "
               modify a = interpret a++": "
+              member (TokFDef (FDefC (FDec a b x c) d e))
+                | x==ThisType = interpret (TokFDef (FDefC (FDec a b n c) d e))
+              member (TokFDef (FDef (FDec a b x c) d))
+                | x==TildaThisType = interpret (TokFDef (FDef (FDec a b (destructor n) c) d))
+              member (TokFDec (FDec a b x c))
+                | x==ThisType = interpret (TokFDec (FDec a b n c))
+              member (TokFDec (FDec a b x c))
+                | x==TildaThisType = interpret (TokFDec (FDec a b (destructor n) c))
+              member x = interpret x
+              destructor (Name [n]) = Name ["~"++n]
+              thistype = "typedef "++interpret n++" thistype;\n"
 instance Declare DataDefinition where
     declare (DDef (DH (Just l) t n _ _) _) = interpret l`line`interpret t`space`interpret n++";\n"
     declare (DDef (DH Nothing t n _ _) _) = interpret t`space`interpret n++";\n"
@@ -270,16 +285,15 @@ instance Declare Token where
     declare _ = ""
 
 instance Interpret Tokens where
-    interpret (Tokens ts) =  concatMap interpret (filter first ts) ++ include ++ decl ++ concatMap interpret ts'
+    interpret (Tokens ts) =  concatMap interpret (filter first ts) ++ decl ++ concatMap interpret ts'
         where first (TokCppCompilerDirective s) = True
               first _ = False
               ts' = filter (not.first) ts
               decl' = concat $ map declare ts'
               decl = if null decl' then "" else
-                        "//////forward declarations start//////\n"++
+                        "//////forward declarations begin//////\n"++
                         decl'++
                         "//////forward declarations end//////\n"
-              include = "#include \"hash.hpp\"\n"
 compile :: String->String
-compile = interpret . eval
+compile s = "#include \"hash.hpp\"\n"++interpret (eval s)
 

@@ -1,6 +1,6 @@
 module HashToken where
 
-data Name = Name [String] deriving (Eq, Show, Read)
+data Name = Name [String] | ThisType | TildaThisType deriving (Eq, Show, Read)
 type Literal = String
 type Symbol = String
 data WriteModifier = Const | Mutable | NoWM deriving (Eq, Show, Read)
