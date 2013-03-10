@@ -4,7 +4,7 @@ Hash is "a much better C++".
 The syntax looks like C++, but it's much more beautiful.
 Hash generates a C++11 source code from the source code.
 
-Hash was named after *Has*kell and *su*gar syntax. It also comes from C#, which can be read as C *hash*.
+Hash was named after <em>Has</em>kell and <em>su</em>gar syntax. It also comes from C#, which can be read as C <em>hash</em>.
 
 To know more about Hash, please see [Reference](/Reference.md).
 
