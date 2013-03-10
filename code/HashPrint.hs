@@ -3,8 +3,47 @@ module HashPrint where
 import Print.Print
 import HashToken
 import HashParse
+import Data.List
 
 ---- data ----
+
+cppReservedWords = [
+    "alignas","alignof","and","and_eq","asm","auto",
+    "bitand","bitor","bool","break",
+    "case","catch","char","char16_t","char32_t","class","compl","const","constexpr","const_cast","continue",
+    "decltype","default","delete","do","double","dynamic_cast",
+    "else","enum","explicit","export","extern",
+    "false","float","for","friend",
+    "goto",
+    "if","inline","int",
+    "long",
+    "mutable",
+    "namespace","new","noexcept","not","not_eq","nullptr",
+    "operator","or","or_eq",
+    "private","protected","public",
+    "register","reinterpret_cast","return",
+    "short","signed","sizeof","static","static_assert","static_cast","struct","switch",
+    "template","this","thread_local","throw","true","try","typedef","typeid","typename",
+    "union","unsigned","using","virtual","void","volatile","wchar_t","while","xor","xor_eq"]
+
+cppReservedTypes = [
+    "bool","char","char16_t","char32_t","double","float","int","long","signed","unsigned","short","void"]
+cppReservedValues = ["false","true"]
+
+cppDefinableSymbols = [
+    "+","-","*","/","%",
+    "++","--",
+    "+=","-=","*=","/=","%=",
+    "<<",">>",
+    "<<=",">>=",
+    "&","|","^","~",
+    "&=","|=","^=",
+    "!","&&","||",
+    "==","!=","<",">",">=","<=",
+    "&","->","->*"]
+
+cppUndefinableSymbols = [
+    "?",":","::",".",".*"]
 
 symbolName :: Symbol -> String
 symbolName s = "operator"++ translate s
@@ -48,12 +87,15 @@ instance Interpret Int where
     interpret = show
 
 instance Interpret Name where
-    interpret (Name n) = n
+    interpret (Name ns) = (map fix ns)`sep`"::"
+        where fix s | s`elem`((cppReservedWords\\cppReservedTypes)\\cppReservedValues)= s++"NotReservedWord"
+              fix s = s
 
 instance Interpret Type where
     interpret (TypName n) = interpret n
     interpret (TypSigned n) = "signed "++interpret n
     interpret (TypUnsigned n) = "unsigned "++interpret n
+    interpret (TypLong n) = "long "++interpret n
     interpret (TypApplication t as) = interpret t ++ interpret as
     interpret (TypConst t) = "const"`space`interpret t
     interpret (TypMutable t) = "mutable"`space`interpret t
@@ -223,18 +265,21 @@ instance Interpret Token where
     interpret (TokError s) = s
 
 instance Declare Token where
-    declare (TokVDef x) = declare x ++ ";\n"
     declare (TokFDef x) = declare x
     declare (TokDDef x) = declare x
     declare _ = ""
 
 instance Interpret Tokens where
-    interpret (Tokens ts) = concatMap interpret f ++ concatMap declare ts' ++ concatMap interpret ts'
+    interpret (Tokens ts) =  concatMap interpret (filter first ts) ++ include ++ decl ++ concatMap interpret ts'
         where first (TokCppCompilerDirective s) = True
               first _ = False
               ts' = filter (not.first) ts
-              f = filter first ts
-
+              decl' = concat $ map declare ts'
+              decl = if null decl' then "" else
+                        "//////forward declarations start//////\n"++
+                        decl'++
+                        "//////forward declarations end//////\n"
+              include = "#include \"hash.hpp\"\n"
 compile :: String->String
 compile = interpret . eval
 

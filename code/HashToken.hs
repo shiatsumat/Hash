@@ -1,6 +1,6 @@
 module HashToken where
 
-data Name = Name {name::String} deriving (Eq, Show, Read)
+data Name = Name [String] deriving (Eq, Show, Read)
 type Literal = String
 type Symbol = String
 data WriteModifier = Const | Mutable | NoWM deriving (Eq, Show, Read)
@@ -11,6 +11,7 @@ data TemplateApplicationList = TAL [Either Type Expression] deriving (Eq, Show, 
 data Type = TypName Name
           | TypSigned Name
           | TypUnsigned Name
+          | TypLong Type
           | TypApplication Type TemplateApplicationList
           | TypConst Type
           | TypMutable Type

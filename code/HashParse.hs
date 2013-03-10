@@ -6,21 +6,6 @@ import HashToken
 
 ---- data ----
 
-cppDefinableSymbols = [
-    "+","-","*","/","%",
-    "++","--",
-    "+=","-=","*=","/=","%=",
-    "<<",">>",
-    "<<=",">>=",
-    "&","|","^","~",
-    "&=","|=","^=",
-    "!","&&","||",
-    "==","!=","<",">",">=","<=",
-    "&","->","->*"]
-
-cppUndefinableSymbols = [
-    "?",":","::",".",".*"]
-
 infixlSymbols = [
     ["|>","<|","*>","<*"],
     [],
@@ -97,19 +82,6 @@ suffixSymbols = [
     ["++","--"],
     []]
 
-reservedWords =
-  [ "main",
-    "if","then","else","case","switch",
-    "while","until","for","dowhile","dountil",
-    "struct","class","data",
-    "public","private","protected",
-    "this","thisdata",
-    "constructor","destructor","operator",
-    "typeid","template","typename",
-    "const_cast","dynamic_cast","static_cast","reinterpret_cast",
-    "new","delete",
-    "throw","try","catch"]
-
 alphabetChar = ['a'..'z']++['A'..'Z']
 digitChar = ['0'..'9']
 nameStartChar = alphabetChar++"_"
@@ -123,7 +95,7 @@ whiteChar = " \t\n\r"
 data CodeDerivs = CodeDerivs {
         cdvCode :: Result CodeDerivs Tokens,
         cdvWhiteStuff,cdvWhiteStuff1 :: Result CodeDerivs [Token],
-        cdvName, cdvSimpleName :: Result CodeDerivs Name,
+        cdvName, cdvSimpleName, cdvName' :: Result CodeDerivs Name,
         cdvComment,cdvNComment,cdvNumberLiteral,cdvCharLiteral,cdvStringLiteral :: Result CodeDerivs String,
         cdvCppCompilerDirective :: Result CodeDerivs Token,
         cdvType :: Result CodeDerivs Type,
@@ -150,7 +122,7 @@ parse pos s = parse' s pos s
 parse' a pos s = d where
     d = CodeDerivs
         (cpCode d) (cpWhiteStuff d) (cpWhiteStuff1 d)
-        (cpName d) (cpSimpleName d)
+        (cpName d) (cpSimpleName d) (cpName' d)
         (cpComment d) (cpNComment d) (cpNumberLiteral d) (cpCharLiteral d) (cpStringLiteral d)
         (cpCppCompilerDirective d)
         (cpType d)
@@ -212,7 +184,7 @@ parse' a pos s = d where
            c <- oneOf nameStartChar
            cs <- many $ oneOf nameChar
            char ':'
-           return $ TokLabel $ Name (c:cs)
+           return $ TokLabel $ Name [c:cs]
     cpWhiteStuff1 = parser $
         concat <$> many1 (Parser cpWhiteStuff1' </> single (Parser cpLabel))
 
@@ -246,12 +218,27 @@ parse' a pos s = d where
            c <- oneOf nameStartChar
            cs <- many $ oneOf nameChar
            return $ (c:cs)
+    cpRawName' = parser $
+        do white
+           char' '~'
+           c <- oneOf nameStartChar
+           cs <- many $ oneOf nameChar
+           return $ ('~':c:cs)
+        </> Parser cpRawName
     cpSimpleName = parser $
-        Name <$> (optional (char' '@') >> Parser cpRawName)
+        Name <$> single (optional (char' '@') >> Parser cpRawName)
+    cpSimpleName' = parser $
+        Name <$> single (optional (char' '@') >> Parser cpRawName')
     cpName = parser $
-        do ns <- concat <$> many ((name<$>Parser cdvSimpleName) <++> (string' "::"))
-           n <- name <$> Parser cdvSimpleName
-           return $ Name $ ns++n
+        do ns <- many ((dename <$> Parser cdvSimpleName) >> (string' "::"))
+           n <- dename <$> Parser cdvSimpleName
+           return $ Name $ ns++[n]
+            where dename (Name [s]) = s
+    cpName' = parser $
+        do ns <- many ((dename <$> Parser cdvSimpleName) >> (string' "::"))
+           n <- dename <$> Parser cpSimpleName'
+           return $ Name $ ns++[n]
+            where dename (Name [s]) = s
 
     ---- Literal ----
 
@@ -428,6 +415,7 @@ parse' a pos s = d where
         (paren (Parser cdvType)) </>
         (string' "signed" >> TypSigned <$> Parser cdvName) </>
         (string' "unsigned" >> TypUnsigned <$> Parser cdvName) </>
+        (string' "long" >> TypLong <$> Parser cdvType) </>
         (TypName <$> Parser cdvName) </>
         (TypTuple <$> parenSep (Parser cdvType)) </>
         (TypList <$> bracket (Parser cdvType))
@@ -459,9 +447,13 @@ parse' a pos s = d where
     ---- Pattern ----
     
     cpPattern = parser $
-        (PatName <$> Parser cdvName) </>
-        (paren (Parser cdvPattern)) </>
-        (PatTuple <$> parenSep (Parser cdvPattern))
+        paren (Parser cdvPattern) </>
+        (char' '_'>>return PatWildcard) </>
+        PatDataConstructor <$> Parser cdvName <*> bracketSep (Parser cdvPattern) </>
+        PatAs <$> Parser cdvName <*> (string' "as">>Parser cdvPattern) </>
+        PatName <$> Parser cdvName </>
+        PatTuple <$> parenSep (Parser cdvPattern) </>
+        PatList <$> bracketSep (Parser cdvPattern)
 
     ---- Function ----
     
@@ -479,7 +471,16 @@ parse' a pos s = d where
            n <- Parser cdvName
            a <- Parser cdvArgumentList
            return $ FDec Nothing r n a
-    cpFunctionDeclaration = parser $ Parser cpFunctionHeader <* char' ';'
+    cpConstructorHeader = parser $
+        do n <- Parser cdvName
+           t <- optional $ Parser cdvTemplateDefinitionList
+           a <- Parser cdvArgumentList
+           return $ FDec t TypNothing n a
+    cpDestructorHeader = parser $
+        do n <- Parser cdvName'
+           a <- paren $ return $ AList [] NoWM
+           return $ FDec Nothing TypNothing n a
+    cpFunctionDeclaration = parser $ choice [Parser cpFunctionHeader, Parser cpConstructorHeader, Parser cpDestructorHeader] <* char' ';'
     cpFunctionDeclarationToken = parser $ TokFDec <$> Parser cpFunctionDeclaration
 
     cpFunctionBody = parser $
@@ -490,33 +491,20 @@ parse' a pos s = d where
            return $ SttBlock $ Tokens [TokStatement(SttReturn e)]
     cpFunctionDefinition = parser $
         FDef <$> Parser cpFunctionHeader <*> Parser cpFunctionBody
-    cpFunctionDefinitionToken = parser $ TokFDef <$> Parser cpFunctionDefinition
-
-    cpConstructorHeader n = parser $
-        do n <- Parser cdvName `satisfy` (==n)
-           t <- optional $ Parser cdvTemplateDefinitionList
-           a <- Parser cdvArgumentList
-           return $ FDec t TypNothing n a
-    cpDestructorHeader n = parser $
-        do char' '~'
-           n <- Parser cdvName `satisfy` (==n)
-           let n' = Name ("~"++name n)
-           a <- paren $ return $ AList [] NoWM
-           return $ FDec Nothing TypNothing n' a
-    cpConstructorDeclarationToken n = parser $ TokFDec <$> Parser (cpConstructorHeader n) <* char' ';'
-    cpDestructorDeclarationToken n = parser $ TokFDec <$> Parser (cpDestructorHeader n) <* char' ';'
     cpInitializationList = parser $
         do char' ':'
            justSep (Parser cdvExpression)
-    cpConstructorDefinitionToken n = parser $
-        do f <- Parser $ cpConstructorHeader n
+    cpConstructorDefinition = parser $
+        do f <- Parser $ cpConstructorHeader
            i <- Parser cpInitializationList </> return []
            s <- Parser cpFunctionBody
-           return $ TokFDef $ FDefC f i s
-    cpDestructorDefinitionToken n = parser $
-        do f <- Parser $ cpDestructorHeader n
+           return $ FDefC f i s
+    cpDestructorDefinition = parser $
+        do f <- Parser $ cpDestructorHeader
            s <- Parser cpFunctionBody
-           return $ TokFDef $ FDef f s
+           return $ FDef f s
+    cpFunctionDefinitionToken = parser $ TokFDef <$>
+        choice [Parser cpFunctionDefinition, Parser cpConstructorDefinition, Parser cpDestructorDefinition]
 
     ---- Data ----
     
@@ -582,16 +570,11 @@ parse' a pos s = d where
     
     cpDataDefinition = parser $
         do h <- Parser cpDataHeader
-           let DH _ _ n _ _ = h
            char' '{'
-           m <- many ((Parser cpAccessModifier) <|~|> (
+           m <- many (Parser cpAccessModifier <|~|> (
                 Parser cpVariantDefinitionToken </>
                 Parser cpFunctionDeclarationToken </>
-                Parser cpFunctionDefinitionToken </>
-                Parser (cpConstructorDeclarationToken n) </>
-                Parser (cpConstructorDefinitionToken n) </>
-                Parser (cpDestructorDeclarationToken n) </>
-                Parser (cpDestructorDefinitionToken n)))
+                Parser cpFunctionDefinitionToken))
            char' '}'
            return $ DDef h m
 

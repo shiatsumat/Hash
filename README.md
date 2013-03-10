@@ -5,7 +5,7 @@ Hash is an object-oriented programming language with a Haskell-like syntax.
 Hash compiler generates a C++11 source code.
 Hash was named after "Has"kell and sugar syntax("sh").
 
-To know more about Hash, please see "Reference.txt".
+To know more about Hash, please see "Reference.md".
 
 Basic Principle of Hash
 ----------------------------------------
