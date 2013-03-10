@@ -18,8 +18,7 @@
 
 ## Comment
 
-<pre><code>
-/*a*/ ===> //a
+<pre><code>/*a*/ ===> //a
 /*a/*b*/c*/ ===>
 	//a
 	////b
@@ -30,8 +29,7 @@
 
 ## Type
 
-<pre><code>
-A
+<pre><code>A
 var ===> auto
 val ===> const auto
 ref ===> auto&
@@ -50,8 +48,7 @@ A->B ===> Hash::Function<A,B>
 
 ## Name (of Variants, Functions, Types, and so on)
 
-<pre><code>
-a
+<pre><code>a
 n::a
 int
 return ===> returnNotReservedWord
@@ -64,8 +61,7 @@ return ===> returnNotReservedWord
 
 ## Expression
 
-<pre><code>
-x
+<pre><code>x
 if(x) y else z ===> x?y:z
 \(A x,B y){} ===> [&](A x,B y){}
 \(A x,B y)->C{} ===> [&](A x,B y)->C{}
@@ -78,8 +74,7 @@ if(x) y else z ===> x?y:z
 
 ## Statement
 
-<pre><code>
-x;
+<pre><code>x;
 {x;}
 if(x){}
 if(x){}else{}
@@ -96,16 +91,14 @@ break;
 
 ## Variant
 
-<pre><code>
-extern A x,y;
+<pre><code>extern A x,y;
 A x=0,y;
 A* x,y; ===> A *x, *y;
 </pre></code>
 
 ## Function
 
-<pre><code>
-R f(A x,B y);
+<pre><code>R f(A x,B y);
 R f(A x,B y){}
 R f<T,int x>(){} ===> template<typename T,int x> R f(){}
 R f(A x,B y)=x; ===> R f(A x,B y){return x;}
@@ -113,15 +106,13 @@ R f(A x,B y)=x; ===> R f(A x,B y){return x;}
 
 ## Enum
 
-<pre><code>
-enum A{x=0,y} ===> enum A{x=0,y};
+<pre><code>enum A{x=0,y} ===> enum A{x=0,y};
 bitenum A{x,y,z} ===> enum A{x=1,y=2,z=4};
 </pre></code>
 
 ## Class/Struct
 
-<pre><code>
-class A{} ===> class A{};
+<pre><code>class A{} ===> class A{};
 class A{public int x;} ===> class A{public: int x;};
 class A<T,int x>{} ===> template<typename T,int x> class A{};
 class A where c {} ===> class A{static_assert(...);};
@@ -129,8 +120,7 @@ class A where c {} ===> class A{static_assert(...);};
 
 ## Where
 
-<pre><code>
-where c1,c2 ===> static_assert(...);static_assert(...);
+<pre><code>where c1,c2 ===> static_assert(...);static_assert(...);
 where a ===> static_assert(a,"DOESN'T MATCH STATIC CONDITION");
 where A :=: B ===> static_assert(Hash::is_same<A,B>::value,"DOESN'T MATCH TYPE CONDITION");
 where A :>: B ===> static_assert(Hash::is_base_of<A,B>::value,"DOESN'T MATCH TYPE CONDITION");

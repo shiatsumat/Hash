@@ -1,20 +1,23 @@
-Hash Programming Language
-========================================
+# Hash Programming Language
 
-Hash is an object-oriented programming language with a Haskell-like syntax.
-Hash compiler generates a C++11 source code.
-Hash was named after "Has"kell and sugar syntax("sh").
+Hash is "a much better C++".
+The syntax looks like C++, but it's much more beautiful.
+Hash generates a C++11 source code from the source code.
 
-To know more about Hash, please see "Reference.md".
+Hash was named after *Has*kell and *su*gar syntax. It also comes from C#, which can be read as C *hash*.
 
-Basic Principle of Hash
-----------------------------------------
+To know more about Hash, please see [Reference](/Reference.md).
+
+## Basic Principle of Hash
+
+* Beautiful Code comes from Beautiful Syntax!
 * Code More Intuitively and Simply and Freely!
 * No More Evil Macro & Template Techniques in C++!
+* As Static as Possible!
 * Make Functional Programming Easier!
 
-Implementation of Hash Compiler
-----------------------------------------
+## Implementation of Hash Compiler
+
 Hash compiler is implemented in Haskell.
 The syntax is parsed with a monadic packrat parser of a library "Pappy" made by Bryan Ford.
-For more information about Pappy, see http://pdos.csail.mit.edu/~baford/packrat/thesis/ .
+For more information about Pappy, see [here](http://pdos.csail.mit.edu/~baford/packrat/thesis/).
