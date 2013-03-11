@@ -1,4 +1,5 @@
 module HashToken where
+import Pappy.Pos
 
 data Name = Name [String] | ThisType | TildaThisType deriving (Eq, Show, Read)
 type Literal = String
@@ -103,6 +104,10 @@ data AlgebraicData = AD [(Name, [(Type, Name)])] deriving (Eq, Show, Read)
 
 data TypeAlias = TA Name Type deriving (Eq, Show, Read)
 
+instance Read Pos where
+    readsPrec _ s = [(Pos "" 0 0,s)]
+data Error = Error Pos String deriving (Eq, Show, Read)
+
 data Token = TokVDec VariantDeclaration
            | TokVDef VariantDefinition
            | TokFDec FunctionDeclaration
@@ -116,7 +121,8 @@ data Token = TokVDec VariantDeclaration
            | TokLabel Name
            | TokStatement Statement
            | TokEmpty
-           | TokError String
+           | TokError Error
+           | TokPos Pos
     deriving (Eq, Show, Read)
 
 data Tokens = Tokens [Token] deriving (Eq, Show, Read)

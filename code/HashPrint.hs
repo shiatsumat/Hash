@@ -1,6 +1,7 @@
 module HashPrint where
 
 import Print.Print
+import Pappy.Pos
 import HashToken
 import HashParse
 import Data.List
@@ -104,12 +105,12 @@ instance Interpret Type where
     interpret (TypPointer t) = interpret t ++ "*"
     interpret (TypReference t) = interpret t ++ "&"
     interpret (TypRvalueReference t) = interpret t ++ "&&"
-    interpret (TypFunction (TypTuple ts) t2) = "Hash::Function"++angleSep[justSep $ map interpret ts,interpret t2]
-    interpret (TypFunction t1 t2) = "Hash::Function"++angleSep [interpret t1,interpret t2]
+    interpret (TypFunction (TypTuple ts) t2) = "hash::function"++angleSep[justSep $ map interpret ts,interpret t2]
+    interpret (TypFunction t1 t2) = "hash::function"++angleSep [interpret t1,interpret t2]
     interpret (TypArray t (-1)) = interpret t ++ "[]"
     interpret (TypArray t n) = interpret t ++ "[" ++ interpret n ++ "]"
-    interpret (TypTuple ts) = "Hash::Tuple" ++ angleSep (map interpret ts)
-    interpret (TypList t) = "Hash::List" ++ angle (interpret t)
+    interpret (TypTuple ts) = "hash::tuple" ++ angleSep (map interpret ts)
+    interpret (TypList t) = "hash::functional_list" ++ angle (interpret t)
 
 instance Interpret Expression where
     interpret (ExpName n) = interpret n
@@ -117,9 +118,9 @@ instance Interpret Expression where
     interpret (ExpStringLiteral s) = "\""++s++"\""
     interpret (ExpCharLiteral s) = "'"++s++"'"
     interpret (ExpApplication e a) = interpret e ++ parenSep (map interpret a)
-    interpret (ExpTuple l) = "Hash::makeTuple" ++ parenSep (map interpret l)
-    interpret ExpUnit = "Hash::unit"
-    interpret (ExpList l) = "Hash::makeList" ++ parenSep (map interpret l)
+    interpret (ExpTuple l) = "hash::make_tuple" ++ parenSep (map interpret l)
+    interpret ExpUnit = "hash::unit"
+    interpret (ExpList l) = "hash::make_list" ++ parenSep (map interpret l)
     interpret (ExpBinarySymbol s e1 e2)
         | s=="."||s=="->" = paren(interpret e1) ++ s ++ interpret e2
         | s==">>" = paren(interpret e1) ++ "," ++ paren(interpret e2)
@@ -131,7 +132,7 @@ instance Interpret Expression where
     interpret (ExpIf e1 e2 e3) = paren (interpret e1) ++ "?" ++ interpret e2++ ":" ++ paren (interpret e3)
     interpret (ExpLambda (Just t) a s) = "[&]"++interpret a++interpret t++"->"++interpretblock s
     interpret (ExpLambda Nothing a s) = "[&]"++interpret a++interpretblock s
-    interpret (ExpStatement s) = "[&]()->"++interpretblock s++"()"
+    interpret (ExpStatement s) = "[&]()"++interpretblock s++"()"
 
 instance Interpret Statement where
     interpret SttEmpty = ";"
@@ -173,7 +174,7 @@ instance Interpret VariantDeclaration where
     interpret (VDec t n) = "extern "++interpret t`space`interpret n
 instance Interpret VariantDefinition where
     interpret (VDef t ns) = interpret (fst(typesuffix t))`space`justSep (map variant ns)
-        where variant (n,Just e) = snd(typesuffix t)++interpret n++" = "++interpret e
+        where variant (n,Just e) = snd(typesuffix t)++interpret n++" = "++paren (interpret e)
               variant (n,Nothing) = snd(typesuffix t)++interpret n
 instance Declare VariantDefinition where
     declare (VDef t ns) = "extern "++interpret (fst(typesuffix t))`space`justSep (map variant ns)
@@ -219,13 +220,13 @@ instance Interpret DataHeader where
         where superclass [] = ""
               superclass x = ": "++justSep(map (\(a,t)->interpret a`space`interpret t) x)
 instance Interpret DataWhere where
-    interpret (DWSame t1 t2) = "static_assert(Hash::is_same"++
+    interpret (DWSame t1 t2) = "static_assert(hash::is_same"++
         angleSep [interpret t1,interpret t2]++"::value,\"DOESN'T MATCH TYPE CONDITION\");\n"
-    interpret (DWBase t1 t2) = "static_assert(Hash::is_base_of"++
+    interpret (DWBase t1 t2) = "static_assert(hash::is_base_of"++
         angleSep [interpret t1,interpret t2]++"::value,\"DOESN'T MATCH TYPE CONDITION\");\n"
-    interpret (DWTypeIs t s) = "static_assert(Hash::is_"++s++
+    interpret (DWTypeIs t s) = "static_assert(hash::is_"++s++
         angle (interpret t)++"::value,\"DOESN'T MATCH TYPE CONDITION\");\n"
-    interpret (DWTypeHas t s) = "static_assert(Hash::has_"++s++
+    interpret (DWTypeHas t s) = "static_assert(hash::has_"++s++
         angle (interpret t)++"::value,\"DOESN'T MATCH TYPE CONDITION\");\n"
     interpret (DWExpression e) = "static_assert("++interpret e++",\"DOESN'T MATCH STATIC CONDITION\");\n"
 
@@ -265,6 +266,9 @@ instance Interpret EnumData where
               basetype Nothing = ""
               basetype (Just t) = " :"++interpret t++" "
 
+instance Interpret Error where
+    interpret (Error (Pos _ l c) s) = "#error "++show l++":"++show c++": "++s++"\n"
+
 instance Interpret Token where
     interpret (TokComment s) = s
     interpret (TokCppCompilerDirective s) = s
@@ -277,7 +281,8 @@ instance Interpret Token where
     interpret (TokLabel n) = interpret n++":\n"
     interpret (TokStatement s) = interpret s++"\n"
     interpret TokEmpty = ";\n"
-    interpret (TokError s) = s
+    interpret (TokError e) = interpret e
+    interpret (TokPos (Pos  f l c)) = "#line "++show l++"\n"
 
 instance Declare Token where
     declare (TokFDef x) = declare x
@@ -295,5 +300,5 @@ instance Interpret Tokens where
                         decl'++
                         "//////forward declarations end//////\n"
 compile :: String->String
-compile s = "#include \"hash.hpp\"\n"++interpret (eval s)
+compile s = "#line 0\n#include \"hash.hpp\"\n"++interpret (eval s)
 
