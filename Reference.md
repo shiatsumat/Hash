@@ -11,7 +11,6 @@
 ## Point
 
 * The grammar of Hash is quite similar to C++.
-* Expressions and statements are very similarly treated.
 * Every definition will be automatically declared forward.
 
 ## Comment
@@ -48,13 +47,15 @@
 	a
 	n::a
 	int
+	true
 	return ===> returnNotReservedWord
 	@a
 
 * Hash doesn't have any reserved words, but *contextual keywords*.
 * You can use a C++ keyword to define something, and the name will be automatically changed to avoid crashing.
 * Please note that C++ keywords that refer to type names (such as int) and data (such as true) won't be automatically changed.
-* You can add "@" to avoid crashing with Hash's contextual keywords.
+  Hash sees these names as *automatically declared names*, not as contextual keywords.
+* You can add "@" to avoid clashing with Hash's contextual keywords.
 
 ## Literal
 
@@ -75,6 +76,8 @@
 	() ===> Hash::unit
 	[x,y] ===> Hash::makeList(x,y)
 
+* Expressions and statements are very similarly treated.
+* Hash doesn't use trinary operator of C (a?b:c).
 
 ## Statement
 
