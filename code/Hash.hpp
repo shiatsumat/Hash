@@ -11,19 +11,40 @@ namespace hash{
 	const auto unit = make_tuple();
 
 	template <typename T>
-	class functional_list{
-		typedef functional_list thistype;
+	struct functional_list{
 		typedef tuple<T,functional_list> type0;
 		typedef tuple<> type1;
-		union{
+		typedef functional_list thistype;
+		union {
 			type0* data0;
 			type1* data1;
-		}data;
+		}uniondata;
 		int now;
-		const type0& Cons()const{if(now==0)return *(type0*)(data);}
-		const type1& Nil()const{if(now==1)return *(type1*)(data);}
-		type0& Cons(){if(now==0)return *(type0*)(data);}
-		type1& Nil(){if(now==1)return *(type1*)(data);}
+		const type0& Cons()const{if(now==0)return *(type0*)(uniondata);}
+		const type1& Nil()const{if(now==1)return *(type1*)(uniondata);}
+		type0& Cons(){if(now==0)return *(type0*)(uniondata);}
+		type1& Nil(){if(now==1)return *(type1*)(uniondata);}
+		functional_list(){now=-1;}
+		~functional_list(){
+			switch(now){
+				case(0):{delete uniondata.data0;}
+				case(1):{delete uniondata.data1;}
+			}
+		}
 	};
+	template <typename T>
+	functional_list<T> make_Cons(typename functional_list<T>::type0 data){
+		functional_list<T> x;
+		x.uniondata.data0 = new typename functional_list<T>::type0(data);
+		x.now = 0;
+		return x;
+	}
+	template <typename T>
+	functional_list<T> make_Nil(typename functional_list<T>::type1 data){
+		functional_list<T> x;
+		x.uniondata.data1 = new typename functional_list<T>::type1(data);
+		x.now = 1;
+		return x;
+	}
 }
 

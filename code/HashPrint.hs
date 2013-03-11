@@ -87,10 +87,11 @@ interpretanyway (Right a) = interpret a
 instance Interpret Int where
     interpret = show
 
+fixname s | s`elem`((cppReservedWords\\cppReservedTypes)\\cppReservedValues)= s++"NotReservedWord"
+fixname s = s
 instance Interpret Name where
-    interpret (Name ns) = (map fix ns)`sep`"::"
-        where fix s | s`elem`((cppReservedWords\\cppReservedTypes)\\cppReservedValues)= s++"NotReservedWord"
-              fix s = s
+    interpret (Name s) = fixname s
+    interpret (NameInType ts s) = concatMap ((++"::").interpret) ts ++ fixname s
     interpret ThisType = "thistype"
     interpret TildaThisType = "~thistype"
 
@@ -111,6 +112,9 @@ instance Interpret Type where
     interpret (TypArray t n) = interpret t ++ "[" ++ interpret n ++ "]"
     interpret (TypTuple ts) = "hash::tuple" ++ angleSep (map interpret ts)
     interpret (TypList t) = "hash::functional_list" ++ angle (interpret t)
+    interpret (TypTypename t) = "typename "++interpret t
+    interpret (TypTypeType t1 t2) =  interpret t1++"::"++interpret t2
+    interpret TypNothing = ""
 
 instance Interpret Expression where
     interpret (ExpName n) = interpret n
@@ -246,7 +250,8 @@ instance Interpret DataDefinition where
               member (TokFDec (FDec a b x c))
                 | x==TildaThisType = interpret (TokFDec (FDec a b (destructor n) c))
               member x = interpret x
-              destructor (Name [n]) = Name ["~"++n]
+              destructor (Name s) = Name ("~"++s)
+              destructor (NameInType ts s) = Name $ interpret (NameInType ts ("~"++s))
               thistype = "typedef "++interpret n++" thistype;\n"
 instance Declare DataDefinition where
     declare (DDef (DH (Just l) t n _ _) _) = interpret l`line`interpret t`space`interpret n++";\n"

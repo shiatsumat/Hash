@@ -172,12 +172,9 @@ parse' a pos s = d where
     braceSep = sandwichSep (char' '{') (char' '}') (char' ',')
     angle = sandwich (char' '<') (char' '>')
     angleSep = sandwichSep (char' '<') (char' '>') (char' ',')
-    token e p = Tokens <$> concat <$> (many $ (
-        single (Parser cpPos) <++> (
-        (Parser cdvWhiteStuff1 `satisfy` (not.null)) </>
-        single p)) </>
-        Parser cdvWhiteStuff1)
-        </> Tokens <$> single e
+    token e p = Tokens <$> concat <$> (many (
+        (single (Parser cpPos) <++> ((Parser cdvWhiteStuff1 `satisfy` (not.null)) </> single p)) </>
+        Parser cdvWhiteStuff1 </> (single (Parser cpPos) <++> single e)))
 
     ---- White Stuff ----
     
@@ -191,7 +188,7 @@ parse' a pos s = d where
            c <- oneOf nameStartChar
            cs <- many $ oneOf nameChar
            char ':'
-           return $ TokLabel $ Name [c:cs]
+           return $ TokLabel $ Name (c:cs)
     cpWhiteStuff = parser $
         concat <$> many (Parser cpWhiteStuff1' </> single (Parser cpLabel))
     cpWhiteStuff1 = parser $
@@ -230,23 +227,23 @@ parse' a pos s = d where
            return $ ('~':c:cs)
         </> Parser cpRawName
     cpSimpleName = parser $
-        Name <$> single (optional (char' '@') >> Parser cpRawName)
+        Name <$> (Parser cpRawName) </>
+        (char' '@' >> Name <$> ((++"NotReservedWord") <$> Parser cpRawName))
     cpSimpleName' = parser $
-        Name <$> single (optional (char' '@') >> Parser cpRawName')
+        Name <$> (Parser cpRawName')
+    dename (Name s) = s
     cpName = parser $
         (string' "thistype">>return ThisType) </>
-        do x <- (string' "::">>return [""])</>return []
-           ns <- many ((dename <$> Parser cdvSimpleName) <* (string' "::"))
+        do x <- (string' "::">>return [TypNothing])</>return []
+           ts <- many ((Parser cpTypeSmall) <* (string' "::"))
            n <- dename <$> Parser cdvSimpleName
-           return $ Name $ x++ns++[n]
-            where dename (Name [s]) = s
+           return $ NameInType (x++ts) n
     cpName' = parser $
         (Parser cpRawName'`satisfy`(=="~thistype")>>return TildaThisType) </>
-        do x <- (string' "::">>return [""])</>return []
-           ns <- many ((dename <$> Parser cdvSimpleName) <* (string' "::"))
+        do x <- (string' "::">>return [TypNothing])</>return []
+           ts <- many ((Parser cpTypeSmall) <* (string' "::"))
            n <- dename <$> Parser cpSimpleName'
-           return $ Name $ ns++[n]
-            where dename (Name [s]) = s
+           return $ NameInType (x++ts) n
 
     ---- Literal ----
 
@@ -323,18 +320,20 @@ parse' a pos s = d where
 
     cpBlock = parser $
         SttBlock <$> (brace $ token (Parser (cpError$notChar '}')) $
-                    Parser cpStatementToken </>
+                    TokStatement <$> Parser cpStatementSpecial </>
                     Parser cpFunctionDeclarationToken </>
                     Parser cpFunctionDefinitionToken </>
                     Parser cpVariantDeclarationToken </>
-                    Parser cpVariantDefinitionToken)
+                    Parser cpVariantDefinitionToken </>
+                    TokStatement <$> Parser cpStatementSingle)
     cpBlock' = parser $
         do Tokens ss <- brace $ token (Parser (cpError$notChar '}')) $
-                    Parser cpStatementTokenNoReturn </>
+                    TokStatement <$> Parser cpStatementSpecialNoReturn </>
                     Parser cpFunctionDeclarationToken </>
                     Parser cpFunctionDefinitionToken </>
                     Parser cpVariantDeclarationToken </>
-                    Parser cpVariantDefinitionToken
+                    Parser cpVariantDefinitionToken </>
+                    TokStatement <$> Parser cpStatementSingle
            return $ SttBlock $ Tokens $ ss++[TokStatement $ SttReturn ExpUnit]
 
     {-
@@ -348,7 +347,7 @@ parse' a pos s = d where
            return SttSwitch e
     -}
 
-    cpStatementNoReturn = parser $
+    cpStatementSpecialNoReturn = parser $
         Parser cdvBlock </>
         sandwich (string' "goto") (char' ';') (SttGoto <$> Parser cdvSimpleName) </>
         (string' "continue" >> char' ';' >> return SttContinue) </>
@@ -360,14 +359,14 @@ parse' a pos s = d where
            return $ SttControlFlow n x s
         </>
         do string' "if"
-           x <- paren ((Left <$> Parser cdvExpression) </> (Right <$> Parser cpRawVariantDefinition))
+           x <- paren ((Right <$> Parser cpRawVariantDefinition) </> (Left <$> Parser cdvExpression))
            s1 <- Parser cdvStatement
            s2 <- optional (string' "else" >> Parser cdvStatement)
            return $ SttIf x s1 s2
         </>
         do string' "for"
            char' '('
-           x <- (Left <$> Parser cdvExpression) </> (Right <$> Parser cpRawVariantDefinition)
+           x <- (Right <$> Parser cpRawVariantDefinition) </> (Left <$> Parser cdvExpression)
            char' ';'
            e1 <- Parser cdvExpression
            char' ';'
@@ -375,18 +374,18 @@ parse' a pos s = d where
            char' ')'
            s <- Parser cdvStatement
            return $ SttFor x e1 e2 s
-        </>
+    cpReturn = parser $
+        sandwich (string' "return") (char' ';') (SttReturn <$> Parser cdvExpression) </>
+        ((string' "return") >> (char' ';') >> return (SttReturn ExpNothing))
+    cpStatementSpecial = parser $
+        Parser cpStatementSpecialNoReturn </> Parser cpReturn
+    cpStatementSingle = parser $
         do e <- Parser cdvExpression
            char' ';'
            return $ SttSingle e
     cpStatement = parser $
-        sandwich (string' "return") (char' ';') (SttReturn <$> Parser cdvExpression) </>
-        ((string' "return") >> (char' ';') >> return (SttReturn ExpNothing)) </>
-        Parser cpStatementNoReturn
-    cpStatementToken = parser $
-        TokStatement <$> Parser cdvStatement
-    cpStatementTokenNoReturn = parser $
-        TokStatement <$> Parser cpStatementNoReturn
+        Parser cpStatementSpecial </>
+        Parser cpStatementSingle
 
     ---- Template ----
     
@@ -415,17 +414,23 @@ parse' a pos s = d where
         (string' "signed" >> TypSigned <$> Parser cdvName) </>
         (string' "unsigned" >> TypUnsigned <$> Parser cdvName) </>
         (string' "long" >> TypLong <$> Parser cdvType) </>
-        (TypName <$> Parser cdvName) </>
+        (TypName <$> Parser cdvSimpleName) </>
         (TypTuple <$> parenSep (Parser cdvType)) </>
         (TypList <$> bracket (Parser cdvType))
 
-    cpType = parser $ parseOperators (Parser cpTypeMin)
-        [] infixrs prefixs suffixs
+    cpTypeSmall = parser $
+        parseOperators (Parser cpTypeMin) infixls infixrs prefixs suffixs
         where
+            infixls = [[]]
             infixrs = [[string' "->">>return TypFunction]]
             prefixs = [[string' "const">>return TypConst,
-                        string' "mutable">>return TypMutable]]
+                        string' "mutable">>return TypMutable,
+                        string' "typename">>return TypTypename]]
             suffixs = [[char' '@'>>return TypConst,char' '*'>>return TypPointer,string' "&&">>return TypRvalueReference,char' '&'>>return TypReference]]
+
+    cpType = parser $
+        (string' "::" >> TypTypeType TypNothing <$> Parser cpType) </>
+        chainl1 (Parser cpTypeSmall) (string' "::">>return TypTypeType)
 
     ---- Variant ----
 
@@ -470,13 +475,16 @@ parse' a pos s = d where
            n <- Parser cdvName
            a <- Parser cdvArgumentList
            return $ FDec Nothing r n a
+    validconstructordestructorname (NameInType _ s)
+        | s`elem`["if","while","until","dowhile","dountil"] = False
+    validconstructordestructorname _ = True
     cpConstructorHeader = parser $
-        do n <- Parser cdvName
+        do n <- Parser cdvName `satisfy` validconstructordestructorname
            t <- optional $ Parser cdvTemplateDefinitionList
            a <- Parser cdvArgumentList
            return $ FDec t TypNothing n a
     cpDestructorHeader = parser $
-        do n <- Parser cdvName'
+        do n <- Parser cdvName' `satisfy` validconstructordestructorname
            a <- paren $ return $ AList [] NoWM
            return $ FDec Nothing TypNothing n a
     cpFunctionDeclaration = parser $ choice [Parser cpFunctionHeader, Parser cpConstructorHeader, Parser cpDestructorHeader] <* char' ';'

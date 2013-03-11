@@ -1,17 +1,19 @@
-class Aasfowjfoeiwjeofiawjoi<T> where T :is: pod, 10<20
+struct A<T> where T :is: pod, 10<20
 {
 	thistype(thistype* x){}
 	~thistype(){}
 	T fun(T x,T y){return x*y;}
+	
 }
 
-bitenum class X:int{X1,X2,X3,X4}
+bitenum class X :int{X1,X2,X3,X4}
 
 int main(){
 	int a=0;
 	int return;
 	return=({}>>10);
 	printf("Hello %d",return);
+	if(bool x=true){printf("foo\n");}
 	return return;
 }
 
