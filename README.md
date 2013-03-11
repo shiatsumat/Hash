@@ -1,4 +1,4 @@
-# Hash Programming Language
+ï»¿# Hash Programming Language
 
 Hash is "a much better C++".
 The syntax looks like C++, but it's much more beautiful.
@@ -29,8 +29,8 @@ For more information about Pappy, see [here](http://pdos.csail.mit.edu/~baford/p
 This programming language and this program are my works.
 ([Parse.hs](code/Pappy/Parse.hs) and [Pos.hs](code/Pappy/Pos.hs) was made by Bryan Ford, and other files in [code/Pappy](code/Pappy/) directory was made by me.)
 
-Copyright &copy; 2013 MATSUSHITA Yusuke &lt;y.skm24tATgm„pil.cƒÍm&gt;
+Copyright &copy; 2013 MATSUSHITA Yusuke &lt;y.skm24tATgmÐ°il.cÎ¿m&gt;
 
 ## Author 
 
-MATSUSHITA Yusuke &lt;y.skm24tATgm„pil.cƒÍm&gt;
+MATSUSHITA Yusuke &lt;y.skm24tATgmÐ°il.cÎ¿m&gt;
