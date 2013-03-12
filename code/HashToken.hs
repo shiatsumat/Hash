@@ -16,6 +16,7 @@ data Type = TypName Name
           | TypApplication Type TemplateApplicationList
           | TypConst Type
           | TypMutable Type
+          | TypStatic Type
           | TypPointer Type
           | TypReference Type
           | TypRvalueReference Type
@@ -45,6 +46,8 @@ data Expression = ExpName Name
                 | ExpIf Expression Expression Expression
                 | ExpLambda (Maybe Type) ArgumentList Statement
                 | ExpStatement Statement
+                | ExpData Name [Expression]
+                | ExpMatch Expression [(Pattern,Expression)]
                 | ExpNothing
     deriving (Eq, Show, Read)
 
@@ -60,20 +63,23 @@ data Statement = SttEmpty
                | SttContinue
                | SttBreak
                | SttIf (Either Expression VariantDefinition) Statement (Maybe Statement)
-               | SttWhite [Token] Statement
+               | SttMatch Expression [(Pattern,Statement)]
                | SttNothing
     deriving (Eq, Show, Read)
 
+type OnlyThem = Bool
 data Pattern = PatName Name
              | PatDataConstructor Name [Pattern]
              | PatWildcard
+             | PatWildcardOthers
              | PatLiteral Literal
              | PatTuple [Pattern]
              | PatList [Pattern]
              | PatAs Name Pattern
+             | PatEqual Expression
     deriving (Eq, Show, Read)
 
-data VariantDeclaration = VDec Type Name deriving (Eq, Show, Read)
+data VariantDeclaration = VDec Type [Name] deriving (Eq, Show, Read)
 data VariantDefinition = VDef Type [(Name,Maybe Expression)] deriving (Eq, Show, Read)
 
 data ArgumentList = AList [(Type,Maybe (Name,Maybe Expression))] WriteModifier deriving (Eq, Show, Read)
@@ -84,6 +90,8 @@ data FunctionDefinition = FDef FunctionDeclaration Statement
     deriving (Eq, Show, Read)
 
 data DataType = Struct | Class deriving (Eq, Show, Read)
+type Virtual = Bool
+data MemberModifier = MM AccessModifier Virtual deriving (Eq, Show, Read)
 data AccessModifier = Private | Public | Protected | Default deriving (Eq, Show, Read)
 data DataWhere = DWSame Type Type
                | DWBase Type Type
@@ -91,16 +99,17 @@ data DataWhere = DWSame Type Type
                | DWTypeHas Type String
                | DWExpression Expression
     deriving (Eq, Show, Read)
-data DataDeclaration = DDec (Maybe TemplateDefinitionList) DataType Name deriving (Eq, Show, Read)
 data DataHeader = DH (Maybe TemplateDefinitionList) DataType Name [(AccessModifier, Type)] [DataWhere] deriving (Eq, Show, Read)
 data DataDefinition = DDef
     DataHeader
-    [(AccessModifier, Token)]
+    Tokens
     deriving (Eq, Show, Read)
+data DataDeclaration = DDec (Maybe TemplateDefinitionList) DataType Name deriving (Eq, Show, Read)
 
 type EnumBit = Bool
 type EnumStrong = Bool
-data EnumData = ED EnumBit EnumStrong Name (Maybe Type) [(Name,Maybe Expression)] deriving (Eq, Show, Read)
+data EnumDataDefinition = EDef EnumBit EnumStrong Name (Maybe Type) [(Name,Maybe Expression)] deriving (Eq, Show, Read)
+data EnumDataDeclaration = EDec EnumStrong Name deriving (Eq, Show, Read)
 
 data AlgebraicData = AD [(Name, [(Type, Name)])] deriving (Eq, Show, Read)
 
@@ -116,12 +125,15 @@ data Token = TokVDec VariantDeclaration
            | TokFDef FunctionDefinition
            | TokDDec DataDeclaration
            | TokDDef DataDefinition
-           | TokED EnumData
-           | TokComment String
+           | TokEDec EnumDataDeclaration
+           | TokEDef EnumDataDefinition
+           | TokMM MemberModifier
+           | TokTA TypeAlias
            | TokCppCompilerDirective String
            | TokHashCompilerDirective String
-           | TokLabel Name
            | TokStatement Statement
+           | TokComment String
+           | TokLabel Name
            | TokEmpty
            | TokError Error
            | TokPos Pos

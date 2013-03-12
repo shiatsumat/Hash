@@ -8,7 +8,7 @@ Hash was named after <em>Has</em>kell and <em>su</em>gar syntax.
 It also comes from C#, which can be read as C <em>hash</em>.
 Since *Hash* is a common word, you can also call this language *C-hash*.
 
-To know more about Hash, please see [Reference](/Reference.md).
+For more information about Hash, please see [Reference](/Reference.md).
 
 ## Basic Principle of Hash
 

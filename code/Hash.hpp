@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <tuple>
 #include <functional>
+#include <list>
+#include <forward_list>
 #include <type_traits>
 
 namespace hash{
@@ -46,5 +48,10 @@ namespace hash{
 		x.now = 1;
 		return x;
 	}
+
+	template <typename T>
+	const int static_tuple_size(T& tuple){return tuple_size<T>::value;}
+	tuple<int,int,int> x;
+	const int n = static_tuple_size(x);
 }
 

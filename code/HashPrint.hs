@@ -103,6 +103,7 @@ instance Interpret Type where
     interpret (TypApplication t as) = interpret t ++ interpret as
     interpret (TypConst t) = "const"`space`interpret t
     interpret (TypMutable t) = "mutable"`space`interpret t
+    interpret (TypStatic t) = "static"`space`interpret t
     interpret (TypPointer t) = interpret t ++ "*"
     interpret (TypReference t) = interpret t ++ "&"
     interpret (TypRvalueReference t) = interpret t ++ "&&"
@@ -111,10 +112,41 @@ instance Interpret Type where
     interpret (TypArray t (-1)) = interpret t ++ "[]"
     interpret (TypArray t n) = interpret t ++ "[" ++ interpret n ++ "]"
     interpret (TypTuple ts) = "hash::tuple" ++ angleSep (map interpret ts)
-    interpret (TypList t) = "hash::functional_list" ++ angle (interpret t)
+    interpret (TypList t) = "hash::list" ++ angle (interpret t)
     interpret (TypTypename t) = "typename "++interpret t
     interpret (TypTypeType t1 t2) =  interpret t1++"::"++interpret t2
+    interpret TypAuto = "auto"
+    interpret (TypDecltype e) = "decltype"++paren(interpret e)
     interpret TypNothing = ""
+
+patternif x (PatName n) = "true"
+patternif x (PatLiteral l) = paren(x)++"=="++l
+patternif x (PatEqual l) = paren(x)++"=="++interpret l
+patternif x PatWildcard = "true"
+patternif x (PatAs n p) = patternif x p
+patternif x (PatTuple ps) = "hash::static_tuple_size("++x++")=="++show(length ps)
+    ++concatMap each [0..length ps-1]
+    where each n = "&&"++patternif ("hash::get<"++show n++">("++x++")") (ps!!n)
+patternif x (PatList ps) = (if only
+    then paren(x)++".size()=="++show(length ps) else "true")
+    ++concatMap each [0..length ps-1-if only then 0 else 1]
+    where each n = "&&"++patternif (paren(x)++".at("++show n++")") (ps!!n)
+          only = last ps/=PatWildcardOthers
+patternif x (PatDataConstructor n ps) = paren(x)++".is_"++interpret n++"()&&"
+    ++patternif (x++"."++interpret n++"()") (PatTuple ps)
+
+patternget x (PatName n) = "auto& "++interpret n++"="++paren x++";\n"
+patternget _ (PatLiteral _) = ""
+patternget _ (PatEqual _) = ""
+patternget _ PatWildcard = ""
+patternget x (PatAs n p) = patternget x (PatName n)++patternget x p
+patternget x (PatTuple ps) = concatMap each [0..length ps-1]
+    where each n = patternget ("hash::get<"++show n++">("++x++")") (ps!!n)
+patternget x (PatList ps)
+    = concatMap each [0..length ps-1-if only then 0 else 1]
+    where each n = patternget (paren(x)++".at("++show n++")") (ps!!n)
+          only = last ps/=PatWildcardOthers
+patternget x (PatDataConstructor n ps) = patternget (x++"."++interpret n++"()") (PatTuple ps)
 
 instance Interpret Expression where
     interpret (ExpName n) = interpret n
@@ -137,6 +169,11 @@ instance Interpret Expression where
     interpret (ExpLambda (Just t) a s) = "[&]"++interpret a++interpret t++"->"++interpretblock s
     interpret (ExpLambda Nothing a s) = "[&]"++interpret a++interpretblock s
     interpret (ExpStatement s) = "[&]()"++interpretblock s++"()"
+    interpret (ExpData n es) = interpret n++"_make"++parenSep(map interpret es)
+    interpret (ExpMatch e cs) = concatMap each cs++error
+        where x = interpret e
+              each (p,e) = "("++patternif x p++")?[&]()"++brace(patternget x p++"return "++interpret e++";")++"():"
+              error = "throw \"No Match For Pattern\""
 
 instance Interpret Statement where
     interpret SttEmpty = ";"
@@ -154,13 +191,13 @@ instance Interpret Statement where
     interpret SttBreak = "break;"
     interpret (SttIf e s1 (Just s2)) = "if" ++ paren (interpretanyway e) ++ interpret s1 ++ "else" ++ interpret s2
     interpret (SttIf e s1 Nothing) = "if" ++ paren (interpretanyway e) ++ interpret s1
-    interpret (SttWhite [] SttNothing) = ""
-    interpret (SttWhite w SttNothing) = concatMap interpret w
-    interpret (SttWhite [] s) = interpret s
-    interpret (SttWhite w s) = concatMap interpret w ++ interpret s
+    interpret (SttMatch e cs) = (map each cs)`sep`" "++error
+        where x = interpret e
+              each (p,s) = "if("++patternif x p++")"++brace(patternget x p++interpret s)++"else"
+              error = brace "throw \"No Match For Pattern\";"
+
 interpretblock :: Statement -> String
 interpretblock s@(SttBlock _) = interpret s
-
 interpretblock s = brace $ interpret s
 
 instance Interpret TemplateDefinitionList where
@@ -175,7 +212,8 @@ typesuffix (TypReference t) = (fst(typesuffix t),snd(typesuffix t)++"&")
 typesuffix (TypRvalueReference t) = (fst(typesuffix t),snd(typesuffix t)++"&&")
 typesuffix t = (t,"")
 instance Interpret VariantDeclaration where
-    interpret (VDec t n) = "extern "++interpret t`space`interpret n
+    interpret (VDec t ns) = "extern "++interpret (fst(typesuffix t))`space`justSep (map variant ns)
+        where variant n = snd(typesuffix t)++interpret n
 instance Interpret VariantDefinition where
     interpret (VDef t ns) = interpret (fst(typesuffix t))`space`justSep (map variant ns)
         where variant (n,Just e) = snd(typesuffix t)++interpret n++" = "++paren (interpret e)
@@ -216,6 +254,8 @@ instance Interpret AccessModifier where
     interpret Private = "private"
     interpret Protected = "protected"
     interpret Default = ""
+instance Interpret MemberModifier where
+    interpret (MM a b) = interpret a++": "++if b then "virtual " else ""
 instance Interpret DataHeader where
     interpret (DH (Just l) t n i w) = interpret l`line`interpret t`space`interpret n++superclass i
         where superclass [] = ""
@@ -235,41 +275,52 @@ instance Interpret DataWhere where
     interpret (DWExpression e) = "static_assert("++interpret e++",\"DOESN'T MATCH STATIC CONDITION\");\n"
 
 instance Interpret DataDefinition where
-    interpret (DDef h@(DH _ t n _ w) m) = interpret h ++ brace(thistype++concat(
-        map interpret w ++
-        map (\(a,t)->modify a++member t) m)) ++ ";\n"
-        where modify Default | t==Struct = "public: "
-                             | t==Class = "private: "
-              modify a = interpret a++": "
-              member (TokFDef (FDefC (FDec a b x c) d e))
-                | x==ThisType = interpret (TokFDef (FDefC (FDec a b n c) d e))
-              member (TokFDef (FDef (FDec a b x c) d))
-                | x==TildaThisType = interpret (TokFDef (FDef (FDec a b (destructor n) c) d))
-              member (TokFDec (FDec a b x c))
-                | x==ThisType = interpret (TokFDec (FDec a b n c))
-              member (TokFDec (FDec a b x c))
-                | x==TildaThisType = interpret (TokFDec (FDec a b (destructor n) c))
-              member x = interpret x
+    interpret (DDef h@(DH _ t n _ w) m) = interpret h ++
+        brace(thistype++concatMap interpret w ++ interpret' m)
+        ++ ";\n"
+        where interpret' (Tokens ts) = interpretnodecl $ Tokens (map modify ts)
+              modify (TokMM (MM Default b))
+                | t==Struct = TokMM (MM Public b)
+                | t==Class = TokMM (MM Private b)
+              modify (TokFDef (FDefC (FDec a b x c) d e))
+                | x==ThisType = (TokFDef (FDefC (FDec a b n c) d e))
+              modify (TokFDef (FDef (FDec a b x c) d))
+                | x==TildaThisType = (TokFDef (FDef (FDec a b (destructor n) c) d))
+              modify (TokFDec (FDec a b x c))
+                | x==ThisType = (TokFDec (FDec a b n c))
+              modify (TokFDec (FDec a b x c))
+                | x==TildaThisType = (TokFDec (FDec a b (destructor n) c))
+              modify x = x
               destructor (Name s) = Name ("~"++s)
               destructor (NameInType ts s) = Name $ interpret (NameInType ts ("~"++s))
-              thistype = "typedef "++interpret n++" thistype;\n"
+              thistype = "private: typedef "++interpret n++" thistype;\n"
 instance Declare DataDefinition where
     declare (DDef (DH (Just l) t n _ _) _) = interpret l`line`interpret t`space`interpret n++";\n"
     declare (DDef (DH Nothing t n _ _) _) = interpret t`space`interpret n++";\n"
+instance Interpret DataDeclaration where
+    interpret (DDec (Just l) t n) = interpret l`line`interpret t`space`interpret n++";\n"
+    interpret (DDec Nothing t n) = interpret t`space`interpret n++";\n"
 
-instance Interpret EnumData where
-    interpret (ED False s n t m) = "enum "++(if s then"class "else"")++interpret n++basetype t++brace(justSep $ map member m)++";\n"
+instance Interpret EnumDataDefinition where
+    interpret (EDef False s n t m) = "enum "++(if s then"class "else"")++interpret n++basetype t++brace(justSep $ map member m)++";\n"
         where member (n,Nothing) = interpret n
               member (n,Just e) = interpret n++" = "++interpret e
               basetype Nothing = ""
               basetype (Just t) = " :"++interpret t++" "
-    interpret (ED True s n t m) = "enum "++(if s then"class "else"")++interpret n++basetype t++brace(justSep $ map member [0..(length m-1)])++";\n"
+    interpret (EDef True s n t m) = "enum "++(if s then"class "else"")++interpret n++basetype t++brace(justSep $ map member [0..(length m-1)])++";\n"
         where member x = interpret n++" = "++show(exp x)
                 where (n,Nothing) = m!!x
                       exp 0 = 1
                       exp n = 2 * exp(n-1)
               basetype Nothing = ""
               basetype (Just t) = " :"++interpret t++" "
+instance Interpret EnumDataDeclaration where
+    interpret (EDec s n) = "enum "++(if s then"class "else"")++interpret n++";\n"
+        where basetype Nothing = ""
+              basetype (Just t) = " :"++interpret t++" "
+
+instance Interpret TypeAlias where
+    interpret (TA n t) = "typedef "++interpret t`space`interpret n++";\n"
 
 instance Interpret Error where
     interpret (Error (Pos _ l c) s) = "#error "++show l++":"++show c++": "++s++"\n"
@@ -281,8 +332,12 @@ instance Interpret Token where
     interpret (TokVDef v) = interpret v ++ ";\n"
     interpret (TokFDec f) = interpret f ++ ";\n"
     interpret (TokFDef f) = interpret f
+    interpret (TokDDec d) = interpret d
     interpret (TokDDef d) = interpret d
-    interpret (TokED d) = interpret d
+    interpret (TokEDec d) = interpret d
+    interpret (TokEDef d) = interpret d
+    interpret (TokTA a) = interpret a
+    interpret (TokMM a) = interpret a
     interpret (TokLabel n) = interpret n++":\n"
     interpret (TokStatement s) = interpret s++"\n"
     interpret TokEmpty = ";\n"
@@ -294,8 +349,9 @@ instance Declare Token where
     declare (TokDDef x) = declare x
     declare _ = ""
 
+interpretnodecl (Tokens ts) = concatMap interpret ts
 instance Interpret Tokens where
-    interpret (Tokens ts) =  concatMap interpret (filter first ts) ++ decl ++ concatMap interpret ts'
+    interpret (Tokens ts) = concatMap interpret (filter first ts) ++ decl ++ concatMap interpret ts'
         where first (TokCppCompilerDirective s) = True
               first _ = False
               ts' = filter (not.first) ts
