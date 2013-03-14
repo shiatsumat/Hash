@@ -17,6 +17,7 @@ data Type = TypName Name
           | TypConst Type
           | TypMutable Type
           | TypStatic Type
+          | TypConstexpr Type
           | TypPointer Type
           | TypReference Type
           | TypRvalueReference Type
@@ -40,14 +41,18 @@ data Expression = ExpName Name
                 | ExpTuple [Expression]
                 | ExpUnit
                 | ExpList [Expression]
+                | ExpInitializerList [Expression]
                 | ExpBinarySymbol Symbol Expression Expression
                 | ExpPrefixUnarySymbol Symbol Expression
                 | ExpSuffixUnarySymbol Symbol Expression
-                | ExpIf Expression Expression Expression
+                | ExpIf Expression Expression (Maybe Expression)
                 | ExpLambda (Maybe Type) ArgumentList Statement
                 | ExpStatement Statement
                 | ExpData Name [Expression]
                 | ExpMatch Expression [(Pattern,Expression)]
+                | ExpAs Expression Type
+                | ExpIs Expression Type
+                | ExpStaticCast Expression Type
                 | ExpNothing
     deriving (Eq, Show, Read)
 
@@ -76,11 +81,17 @@ data Pattern = PatName Name
              | PatTuple [Pattern]
              | PatList [Pattern]
              | PatAs Name Pattern
+             | PatOr Pattern Pattern
+             | PatAnd Pattern Pattern
+             | PatRecord [(Name,Pattern)]
              | PatEqual Expression
+             | PatType Type
+             | PatWhen Pattern Expression
     deriving (Eq, Show, Read)
 
+data Initialization = InitNo | InitExp Expression | InitArg [Expression] | InitList [Expression] deriving (Eq, Show, Read)
 data VariantDeclaration = VDec Type [Name] deriving (Eq, Show, Read)
-data VariantDefinition = VDef Type [(Name,Maybe Expression)] deriving (Eq, Show, Read)
+data VariantDefinition = VDef Type [(Name,Initialization)] deriving (Eq, Show, Read)
 
 data ArgumentList = AList [(Type,Maybe (Name,Maybe Expression))] WriteModifier deriving (Eq, Show, Read)
 data FunctionDeclaration = FDec (Maybe TemplateDefinitionList) Type Name ArgumentList
@@ -129,11 +140,11 @@ data Token = TokVDec VariantDeclaration
            | TokEDef EnumDataDefinition
            | TokMM MemberModifier
            | TokTA TypeAlias
-           | TokCppCompilerDirective String
-           | TokHashCompilerDirective String
            | TokStatement Statement
            | TokComment String
            | TokLabel Name
+           | TokCppCompilerDirective String
+           | TokNamespace [Name] Tokens
            | TokEmpty
            | TokError Error
            | TokPos Pos

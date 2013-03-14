@@ -1,5 +1,6 @@
 import System.Environment
 import System.Process
+import HashPreprocess
 import HashPrint
 import Control.Applicative
 

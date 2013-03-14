@@ -1,7 +1,6 @@
 module HashParse where
 
 import Pappy.Pappy
-import Print.Print
 import HashToken
 
 ---- data ----
@@ -148,11 +147,29 @@ parse' a pos s = d where
                 Parser cpVariantDeclarationToken </>
                 Parser cpVariantDefinitionToken
     cpCode = parser $ token (Parser (cpError anyChar)) $ single $
-                Parser cdvCppCompilerDirective </>
+                Parser cpNamespace </>
                 Parser cpData </>
                 Parser cpFunction </>
                 Parser cpVariant </>
                 Parser cpEmptyToken
+    cpCode' = parser $ token (Parser (cpError (notChar '}'))) $ single $
+                Parser cpNamespace </>
+                Parser cpData </>
+                Parser cpFunction </>
+                Parser cpVariant </>
+                Parser cpEmptyToken
+
+    cpNamespace = parser $
+        do string' "namespace"
+           ns <- Parser cdvSimpleName `sepBy` string' "::"
+           ts <- brace (Parser cpCode')
+           return $ TokNamespace ns ts
+        </>
+        do string' "namespace"
+           ns <- Parser cdvSimpleName `sepBy` string' "::"
+           string' "where"
+           ts <- Parser cpCode
+           return $ TokNamespace ns ts
 
     ---- Pos ----
 
@@ -191,23 +208,11 @@ parse' a pos s = d where
             (Parser cdvComment >>= \s->return [TokComment s]) </>
             (Parser cdvNComment >>= \s->return [TokComment s]) </>
             (oneOf whiteChar >> return [])
-    cpLabel = parser $
-        do string "label"
-           many1 $ Parser cpWhiteStuff1
-           c <- oneOf nameStartChar
-           cs <- many $ oneOf nameChar
-           char ':'
-           return $ TokLabel $ Name (c:cs)
-    cpWhiteStuff = parser $
-        concat <$> many (Parser cpWhiteStuff1' </> single (Parser cpLabel))
-    cpWhiteStuff1 = parser $
-        concat <$> many1 (Parser cpWhiteStuff1' </> single (Parser cpLabel))
     cpComment = parser $
         do string "//"
            s <- many $ notChar '\n'
            char '\n'
            return $ commentOut (s++"\n")
-
     cpNComment = parser $
         do string "/*"
            x <- noneOfStr ["*/","/*"]
@@ -218,6 +223,29 @@ parse' a pos s = d where
         </>
         do string "/*/"
            return $ commentOut ""
+    cpLabel = parser $
+        do string "label"
+           many1 $ Parser cpWhiteStuff1
+           c <- oneOf nameStartChar
+           cs <- many $ oneOf nameChar
+           char ':'
+           return $ TokLabel $ Name (c:cs)
+    cpCppCompilerDirective = parser $
+        do char '#'
+           x <- noneOfStr ["\n","\\\n"]
+           y <- concat<$>many(
+               (string "\\\n")>>
+               ("\\\n"++)<$>(noneOfStr ["\n","\\\n"]))
+           string "\n"
+           return $ TokCppCompilerDirective("#"++x++y++"\n")
+
+    cpWhiteStuff1 = parser $
+        concat <$> many1 (
+            single (Parser cpCppCompilerDirective) </>
+            single (Parser cpLabel) </>
+            Parser cpWhiteStuff1')
+    cpWhiteStuff = parser $
+        Parser cpWhiteStuff1 </> return []
 
     cpEmptyToken = parser $ char' ';' >> return TokEmpty
 
@@ -266,44 +294,49 @@ parse' a pos s = d where
             concat <$> many (do{x <- char '\\';y <- anyChar;return [x,y]}
             </> do{c<-notChar '\"';return [c]}))
 
-    ---- Compiler Directive ----
-
-    cpCppCompilerDirective = parser
-        (do char '#'
-            x <- noneOfStr ["\n","\\\n"]
-            y <- concat<$>many(
-                (string "\\\n")>>
-                ("\\\n"++)<$>(noneOfStr ["\n","\\\n"]))
-            string "\n"
-            return $ TokCppCompilerDirective("#"++x++y++"\n"))
-
     ---- Pattern ----
 
-    cpPattern = parser $
+    cpWildcardOthers = parser $ string' "_*" >> return PatWildcardOthers
+    cpPatternMinMin = parser $
         PatTuple <$> (parenSep (Parser cdvPattern) `satisfy` (\x->length x/=1))</>
         paren (Parser cdvPattern) </>
         (char' '_'>>return PatWildcard) </>
         PatDataConstructor <$> Parser cdvName <*> braceSep (Parser cdvPattern) </>
-        PatAs <$> Parser cdvName <*> (string' "as">>Parser cdvPattern) </>
+        PatAs <$> Parser cdvName <*> (string' "@">>Parser cdvPattern) </>
         PatName <$> Parser cdvName </>
         PatLiteral <$> Parser cpNumberLiteral </>
-        PatList <$> bracketSep ((string' "_*">>return PatWildcardOthers)</>Parser cdvPattern) </>
-        PatEqual <$> (char' '='>>Parser cdvExpression)
+        PatList <$> (
+            bracketSep(Parser cpWildcardOthers</>Parser cdvPattern) </>
+            braceSep(Parser cpWildcardOthers</>Parser cdvPattern))
+            `satisfy` (\x->x==[]||PatWildcardOthers`notElem`init x) </>
+        PatEqual <$> (char' '='>>paren(Parser cdvExpression)) -- </>
+        --PatRecord <$> braceSep(Parser cdvName<|~|>Parser cdvPattern)
+    cpPatternMin = parser $ parseOperators (Parser cpPatternMinMin)
+        [[char' '|'>>return PatOr],[char' '&'>>return PatAnd]] [] [] []
+    cpPattern = parser $
+        --PatWhen <$> Parser cpPatternMin <*> (string' "when">>Parser cdvExpression) </>
+        Parser cpPatternMin
 
     ---- Expression ----
     
-    cpExpression = parser $ parseOperators (Parser cpExpressionMin)
+    cpExpression = parser $ parseOperators (Parser cpExpressionSmall)
         (map (map (\x->ExpBinarySymbol<$>string' x)) infixlSymbols)
         (map (map (\x->ExpBinarySymbol<$>string' x)) infixrSymbols)
         (map (map (\x->ExpPrefixUnarySymbol<$>string' x)) prefixSymbols)
         (map (map (\x->ExpSuffixUnarySymbol<$>string' x)) suffixSymbols)
 
-    cpExpressionTemplate = parser $ parseOperators (Parser cpExpressionMin)
+    cpExpressionTemplate = parser $ parseOperators (Parser cpExpressionSmall)
         (map (map (\x->ExpBinarySymbol<$>string' x)) (good infixlSymbols))
         (map (map (\x->ExpBinarySymbol<$>string' x)) (good infixrSymbols))
         (map (map (\x->ExpPrefixUnarySymbol<$>string' x)) (good prefixSymbols))
         (map (map (\x->ExpSuffixUnarySymbol<$>string' x)) (good suffixSymbols))
         where good = map $ filter $ notElem '>'
+
+    cpExpressionSmall = parser $
+        ExpAs <$> Parser cpExpressionMin <*> (string' ":?>">>Parser cdvType) </>
+        ExpIs <$> Parser cpExpressionMin <*> (string' ":?">>Parser cdvType) </>
+        ExpStaticCast <$> Parser cpExpressionMin <*> (string' ":>">>Parser cdvType) </>
+        Parser cpExpressionMin
 
     cpLambda = parser $
         do char' '\\'
@@ -326,8 +359,7 @@ parse' a pos s = d where
         do string' "if"
            e1 <- paren $ Parser cdvExpression
            e2 <- Parser cdvExpression
-           string' "else"
-           e3 <- Parser cdvExpression
+           e3 <- optional (string' "else">>Parser cdvExpression)
            return $ ExpIf e1 e2 e3
         </>
         Parser cpLambda </>
@@ -345,6 +377,7 @@ parse' a pos s = d where
         ExpTuple <$> (parenSep $ Parser cpExpression) </>
         paren (return ExpUnit) </>
         ExpList <$> (bracketSep $ Parser cpExpression) </>
+        ExpInitializerList <$> (braceSep $ Parser cpExpression) </>
         ExpStatement <$> Parser cdvBlock'
 
     ---- Statement ----
@@ -454,6 +487,7 @@ parse' a pos s = d where
             infixrs = [[string' "->">>return TypFunction]]
             prefixs = [[string' "const">>return TypConst,
                         string' "mutable">>return TypMutable,
+                        string' "constexpr">>return TypConstexpr,
                         string' "static">>return TypStatic,
                         string' "typename">>return TypTypename]]
             suffixs = [[char' '@'>>return TypConst,char' '*'>>return TypPointer,string' "&&">>return TypRvalueReference,char' '&'>>return TypReference]]
@@ -473,7 +507,11 @@ parse' a pos s = d where
     cpVariantDeclarationToken = parser $ TokVDec <$> Parser cpVariantDeclaration
     cpRawVariantDefinition = parser
         (do t <- Parser cdvType
-            ns <- justSep $ Parser cdvName <|~|> optional (string' "=" >> Parser cdvExpression)
+            ns <- justSep $ Parser cdvName <|~|> (
+                (string' "=" >> InitExp <$> Parser cdvExpression) </>
+                InitArg <$> parenSep (Parser cdvExpression) </>
+                InitList <$> braceSep (Parser cdvExpression) </>
+                return InitNo)
             return $ VDef t ns)
     cpVariantDefinition = parser $ Parser cpRawVariantDefinition <*  char' ';'
     cpVariantDefinitionToken = parser $ TokVDef <$> Parser cpVariantDefinition

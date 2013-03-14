@@ -1,12 +1,5 @@
 #line 0
 #include "hash.hpp"
-//////forward declarations begin//////
-template<typename T>
-struct A;
-int main();
-template<typename T, int x>
-int f(T y);
-//////forward declarations end//////
 #line 1
 template<typename T>
 struct A{
@@ -28,58 +21,56 @@ struct A{
 #line 6
 template<typename T>
 class XOO;
-#line 8
+#line 7
+namespace a{
+namespace b{
+#line 10
 enum class X;
-#line 9
+#line 12
 enum class X :int {
     X1 = 1, X2 = 2, X3 = 4, X4 = 8
 };
-#line 10
+}
+}
+#line 15
 int main(){
-    #line 12
-    static const int a = (0);
-    #line 13
-    int returnNotReservedWord;
-    #line 14
-    (returnNotReservedWord)=(([&](){
-        return hash::unit;
-    }()),(10));
-    #line 15
-    printf("Hello %d", returnNotReservedWord);
-    #line 16
-    if(bool x = (true)){
-        #line 17
+    #line 17
+    if(bool x=(true)){
+        #line 18
         printf("foo\n");
     }
-    #line 17
+    #line 18
     typedef int foo;
-    #line 18
+    #line 19
     ;
-    #line 18
-    hash::vector<int> x;
     #line 19
-    (x).push_back(0);
-    #line 19
-    if((x).size()==3&&true&&((x).at(1))==2&&true){
-        auto& a=((x).at(0));
-        auto& q=((x).at(2));
+    hash::vector<int> x{
+        0, 1, 2, 3
+    };
+    #line 20
+    if((static_cast<hash::vector<int>>(x)).size()==3&&true&&true&&((static_cast<hash::vector<int>>(x)).at(2))==1){
+        auto& a=((static_cast<hash::vector<int>>(x)).at(0));
+        auto& q=((static_cast<hash::vector<int>>(x)).at(1));
         printf("%d", (a)+(q));
-    }else if(true&&((x).at(0))==0){
+    }else if((static_cast<hash::vector<int>>(x)).size()==1&&((static_cast<hash::vector<int>>(x)).at(0))==0){
+        printf("foo");
+    }else if(true){
         printf("foo");
     }else{
         throw "No Match For Pattern";
     }
-    #line 22
-    ;
-    #line 22
-    return returnNotReservedWord;
+    #line 23
+    return 0;
 }
-#line 24
+#line 25
+namespace foo{
+#line 27
 template<typename T, int x>
 int f(T y){
     return ((10)+(x))+(--(-(++(+(((((y)++)++)--)--)))));
 }
-#line 25
+#line 29
 typedef int foo;
-#line 26
+#line 30
 ;
+}

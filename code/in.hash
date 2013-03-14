@@ -4,23 +4,28 @@ struct A<T> where T :is: pod, 10<20
 	private virtual ~thistype(){}
 	T fun(T x,T y){return x*y;}	
 }
-
 class XOO<T>;
+
+
+namespace a::b{
+
 bitenum class X;
 bitenum class X :int{X1,X2,X3,X4}
 
+}
+
 int main(){
-	static int@ a=0;
-	int return;
-	return=({}>>10);
-	printf("Hello %d",return);
 	if(bool x=true){printf("foo\n");}
 	type foo = int;
-	hash::vector<int> x; x.push_back(0);
-	match x with
-		case [a,2,q] -> printf("%d",a+q);
-		case [0,_*]  -> printf("foo");;
-	return return;
+	hash::vector<int> x{0,1,2,3};
+	match x:>hash::vector<int> with
+		case [a,q,1] -> printf("%d",a+q);
+		case [0]|_  -> printf("foo");
+	return 0;
 }
+
+namespace foo where
+
 int f<T,int x>(T y) = 10+x+---+++y++++----;
 type foo = int;
+

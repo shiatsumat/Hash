@@ -1,5 +1,15 @@
 # Hash Ver 0.01 Reference
 
+	         ###   ###                         
+	        ###   ###               ___        
+	    ###############            /  /        
+	   ###############            /  /___      
+	     ###   ###    ___________/  ___  \     
+	 ############### / __     _____/  /  /  /  
+	##############  / /__\ /____  /  /  /  /   
+	  ###   ###     \_____/______/__/  /__/    
+     ###   ###                                 
+
 ## Binaries in Directory "Code"
 
 * main.exe : Just interpret into C++11 code. It uses standard input/output. You can use it like
@@ -8,12 +18,13 @@
 * Compile.exe : Compile with g++. You can use it like
 <pre>compile a.hash -oa.exe</pre>
 
+
 ## Point
 
 * The grammar of Hash is quite similar to C++.
-* Every definition will be automatically declared forward.
 * Hash may generate a C++ code with errors. See the output of a C++ compiler.
 * Hash automatically writes #line preprocessor directives to match the lines of original Hash source codes.
+
 
 ## Comment
 
@@ -25,6 +36,7 @@
 	/*/ ===> (nothing)
 	//a
 
+
 ## Type
 
 	A
@@ -35,6 +47,7 @@
 	decltype
 	const A
 	mutable A
+	typename A
 	A*
 	A&
 	A&&
@@ -59,6 +72,7 @@
   Hash sees these names as *automatically declared names*, not as contextual keywords.
 * You can add "@" to avoid clashing with Hash's contextual keywords.
 
+
 ## Literal
 
 	123
@@ -80,6 +94,7 @@
 
 * Blocks can be treated as expressions. If a block has no return statement, Hash automatically adds "return hash::unit", because C++ can't have a value with a type "void".
 * Hash uses an if-else expression instead of C++'s trinary operator (a?b:c).
+
 
 ## Statement
 
@@ -103,6 +118,7 @@
 	extern A x,y;
 	A x=0,y;
 	static A x=0;
+	constexpr A x=0;
 	A* x,y; ===> A *x, *y;
 
 
@@ -112,8 +128,11 @@
 	R f(A x,B y){}
 	R f<T,int x>(){} ===> template<typename T,int x> R f(){}
 	R f(A x,B y)=x; ===> R f(A x,B y){return x;}
-	static R f(){}
 	R f()const{}
+	static R f(){}
+	virtual R f(){}
+	constexpr R f(){}
+
 
 ## Pattern
 
@@ -124,6 +143,7 @@
 	(1,2,3) ---- Tuple
 	[1,2,3] ---- List
 	Cons{1,[]} ---- Data Constructor
+
 
 ## Enum
 

@@ -11,6 +11,7 @@ namespace hash{
 	using namespace std;
 	typedef tuple<> Unit;
 	const auto unit = make_tuple();
+	auto null = nullptr;
 
 	template <typename T>
 	struct functional_list{
@@ -50,7 +51,7 @@ namespace hash{
 	}
 
 	template <typename T>
-	const int static_tuple_size(T& tuple){return tuple_size<T>::value;}
+	constexpr int static_tuple_size(T& tuple){return tuple_size<T>::value;}
 	tuple<int,int,int> x;
 	const int n = static_tuple_size(x);
 }
