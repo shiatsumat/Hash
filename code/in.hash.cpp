@@ -35,12 +35,12 @@ enum class X :int {
 #line 15
 int main(){
     #line 17
-    if(bool x=(true)){
+    if(bool x=true){
         #line 18
         printf("foo\n");
     }
     #line 18
-    typedef int foo;
+    typedef const int foo;
     #line 19
     ;
     #line 19
@@ -48,17 +48,22 @@ int main(){
         0, 1, 2, 3
     };
     #line 20
-    if((static_cast<hash::vector<int>>(x)).size()==3&&true&&true&&((static_cast<hash::vector<int>>(x)).at(2))==1){
-        auto& a=((static_cast<hash::vector<int>>(x)).at(0));
-        auto& q=((static_cast<hash::vector<int>>(x)).at(1));
-        printf("%d", (a)+(q));
-    }else if((static_cast<hash::vector<int>>(x)).size()==1&&((static_cast<hash::vector<int>>(x)).at(0))==0){
-        printf("foo");
-    }else if(true){
-        printf("foo");
-    }else{
-        throw "No Match For Pattern";
-    }
+    [&](){
+        auto variant_for_match=x;
+        if((variant_for_match).size()==4&&true&&true&&true&&true){
+            auto& a=((variant_for_match).at(0));
+            auto& b=((variant_for_match).at(1));
+            auto& c=((variant_for_match).at(2));
+            auto& d=((variant_for_match).at(3));
+            return printf("%d", (((a)+(b))+(c))+(d));
+        }else if((variant_for_match).size()==1&&((variant_for_match).at(0))==0){
+            return printf("foo");
+        }else if(true){
+            return printf("foo");
+        }else{
+            throw "No Match For Pattern";
+        }
+    }();
     #line 23
     return 0;
 }

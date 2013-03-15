@@ -16,10 +16,10 @@ bitenum class X :int{X1,X2,X3,X4}
 
 int main(){
 	if(bool x=true){printf("foo\n");}
-	type foo = int;
+	type foo = int@;
 	hash::vector<int> x{0,1,2,3};
-	match x:>hash::vector<int> with
-		case [a,q,1] -> printf("%d",a+q);
+	match x with
+		case [a,b,c,d] -> printf("%d",a+b+c+d)
 		case [0]|_  -> printf("foo");
 	return 0;
 }

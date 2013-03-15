@@ -5,7 +5,7 @@ import HashToken
 
 ---- data ----
 
-infixlSymbols = [
+infixlOperators = [
     ["|>","<|","*>","<*"],
     [],
     ["||"],
@@ -24,7 +24,7 @@ infixlSymbols = [
     [],
     []]
 
-infixrSymbols = [
+infixrOperators = [
     [],
     ["=","+=","-=","*=","/=","%=","<<=",">>=","&=","^=","|="],
     ["**"],
@@ -43,7 +43,7 @@ infixrSymbols = [
     [".","->"],
     ["::"]]
 
-prefixSymbols = [
+prefixOperators = [
     ["throw"],
     [],
     [],
@@ -62,7 +62,7 @@ prefixSymbols = [
     [],
     []]
 
-suffixSymbols = [
+suffixOperators = [
     [],
     [],
     [],
@@ -80,6 +80,20 @@ suffixSymbols = [
     [],
     ["++","--"],
     []]
+
+expressionTypeOperators =
+    [":>",":?>",":?",":#>",":@>"]
+
+infixlTypeOperators = [
+    [":+:",":*:"]]
+infixrTypeOperators = [
+    ["->"]]
+prefixTypeOperators = [
+    ["constexpr","const","typename","static","mutable"]]
+suffixTypeOperators = [
+    ["*","&&","&","@"]]
+
+controlStructures = ["while","until","dowhile","dountil"]
 
 alphabetChar = ['a'..'z']++['A'..'Z']
 digitChar = ['0'..'9']
@@ -201,6 +215,7 @@ parse' a pos s = d where
     token e p = Tokens <$> concat <$> (many (
         (single (Parser cpPos) <++> ((Parser cdvWhiteStuff1 `satisfy` (not.null)) </> p)) </>
         Parser cdvWhiteStuff1 </> (single (Parser cpPos) <++> single e)))
+    operatorList m l = map (map (\x->m<$>string' x)) l
 
     ---- White Stuff ----
     
@@ -309,33 +324,48 @@ parse' a pos s = d where
             bracketSep(Parser cpWildcardOthers</>Parser cdvPattern) </>
             braceSep(Parser cpWildcardOthers</>Parser cdvPattern))
             `satisfy` (\x->x==[]||PatWildcardOthers`notElem`init x) </>
-        PatEqual <$> (char' '='>>paren(Parser cdvExpression)) -- </>
-        --PatRecord <$> braceSep(Parser cdvName<|~|>Parser cdvPattern)
+        PatEqual <$> (char' '='>>paren(Parser cdvExpression)) </>
+        PatRecord <$> braceSep(Parser cdvName<|~|>Parser cdvPattern)
     cpPatternMin = parser $ parseOperators (Parser cpPatternMinMin)
-        [[char' '|'>>return PatOr],[char' '&'>>return PatAnd]] [] [] []
+        [[char' '|'>>return PatOr],[char' '&'>>return PatAnd]] []
+        [[char' '!'>>return PatNot]] []
     cpPattern = parser $
-        --PatWhen <$> Parser cpPatternMin <*> (string' "when">>Parser cdvExpression) </>
+        PatWhen <$> Parser cpPatternMin <*> (string' "when">>Parser cdvExpression) </>
+        PatUnless <$> Parser cpPatternMin <*> (string' "unless">>Parser cdvExpression) </>
         Parser cpPatternMin
 
     ---- Expression ----
     
-    cpExpression = parser $ parseOperators (Parser cpExpressionSmall)
-        (map (map (\x->ExpBinarySymbol<$>string' x)) infixlSymbols)
-        (map (map (\x->ExpBinarySymbol<$>string' x)) infixrSymbols)
-        (map (map (\x->ExpPrefixUnarySymbol<$>string' x)) prefixSymbols)
-        (map (map (\x->ExpSuffixUnarySymbol<$>string' x)) suffixSymbols)
+    cpExpression = parser $ parseOperators (Parser cpFunctionOperator)
+        (operatorList ExpBinaryOperator infixlOperators)
+        (operatorList ExpBinaryOperator infixrOperators)
+        (operatorList ExpPrefixOperator prefixOperators)
+        (operatorList ExpSuffixOperator suffixOperators)
 
-    cpExpressionTemplate = parser $ parseOperators (Parser cpExpressionSmall)
-        (map (map (\x->ExpBinarySymbol<$>string' x)) (good infixlSymbols))
-        (map (map (\x->ExpBinarySymbol<$>string' x)) (good infixrSymbols))
-        (map (map (\x->ExpPrefixUnarySymbol<$>string' x)) (good prefixSymbols))
-        (map (map (\x->ExpSuffixUnarySymbol<$>string' x)) (good suffixSymbols))
+    cpExpressionTemplate = parser $ parseOperators (Parser cpFunctionOperator)
+        (operatorList ExpBinaryOperator (good infixlOperators))
+        (operatorList ExpBinaryOperator (good infixrOperators))
+        (operatorList ExpPrefixOperator (good prefixOperators))
+        (operatorList ExpSuffixOperator (good suffixOperators))
         where good = map $ filter $ notElem '>'
 
-    cpExpressionSmall = parser $
-        ExpAs <$> Parser cpExpressionMin <*> (string' ":?>">>Parser cdvType) </>
-        ExpIs <$> Parser cpExpressionMin <*> (string' ":?">>Parser cdvType) </>
-        ExpStaticCast <$> Parser cpExpressionMin <*> (string' ":>">>Parser cdvType) </>
+    cpFunctionOperator = parser $
+        do let operator = do char' '`'
+                             notFollowedBy(Parser cdvWhiteStuff1)
+                             n <- Parser cpRawName
+                             char' '`'
+                             notFollowedBy(Parser cdvWhiteStuff1)
+                             return $ ExpBinaryOperator ("`"++n++"`")
+           chainl1 (Parser cpExpressionTypeOperator) operator
+        </>
+        Parser cpExpressionTypeOperator
+
+    cpExpressionTypeOperator = parser $
+        do e <- Parser cpExpressionMin
+           s <- choice $ map string' [":>",":?>",":?",":#>",":@>"]
+           t <- Parser cdvType
+           return $ ExpTypeOperator s e t
+        </>
         Parser cpExpressionMin
 
     cpLambda = parser $
@@ -350,10 +380,10 @@ parse' a pos s = d where
            e <- Parser cdvExpression
            string' "with"
            cs <- concat <$> many1 element
-           return $ ExpMatch e cs
+           return $ ExpStatement $ SttMatch e cs
            where element = do c <- many1 ((string' "case">>Parser cdvPattern)</>(string' "default">>return PatWildcard))
-                              e <- string' "->">>Parser cdvExpression
-                              return $ map (\x->(x,e)) c
+                              s <- string' "->">>SttReturn<$>Parser cdvExpression
+                              return $ map (\x->(x,s)) c
 
     cpExpressionMin = parser $
         do string' "if"
@@ -406,7 +436,7 @@ parse' a pos s = d where
         (string' "continue" >> char' ';' >> return SttContinue) </>
         (string' "break" >> char' ';' >> return SttBreak) </>
         (char' ';' >> return SttEmpty) </>
-        do n <- oneOfStr' ["while","until","dowhile","dountil"]
+        do n <- oneOfStr' controlStructures
            x <- paren ((Right <$> Parser cpRawVariantDefinition) </> (Left <$> Parser cdvExpression))
            s <- Parser cpStatement
            return $ SttControlFlow n x s
@@ -462,39 +492,31 @@ parse' a pos s = d where
 
     ---- Type ----
     
-    cpTypeMin = parser $
-        (TypApplication <$> Parser cpTypeMinMin <*> Parser cdvTemplateApplicationList) </>
-        (string' "var" >> return TypAuto) </>
-        (string' "val" >> return (TypConst TypAuto)) </>
-        (string' "ref" >> return (TypReference TypAuto)) </>
-        (string' "rref" >> return (TypRvalueReference TypAuto)) </>
-        (string' "decltype" >> TypDecltype <$> paren (Parser cdvExpression) ) </>
-        Parser cpTypeMinMin
-
-    cpTypeMinMin = parser $
-        (paren (Parser cdvType)) </>
-        (string' "signed" >> TypSigned <$> Parser cdvName) </>
-        (string' "unsigned" >> TypUnsigned <$> Parser cdvName) </>
-        (string' "long" >> TypLong <$> Parser cdvType) </>
-        (TypName <$> Parser cdvSimpleName) </>
-        (TypTuple <$> parenSep (Parser cdvType)) </>
-        (TypList <$> bracket (Parser cdvType))
-
-    cpTypeSmall = parser $
-        parseOperators (Parser cpTypeMin) infixls infixrs prefixs suffixs
-        where
-            infixls = [[]]
-            infixrs = [[string' "->">>return TypFunction]]
-            prefixs = [[string' "const">>return TypConst,
-                        string' "mutable">>return TypMutable,
-                        string' "constexpr">>return TypConstexpr,
-                        string' "static">>return TypStatic,
-                        string' "typename">>return TypTypename]]
-            suffixs = [[char' '@'>>return TypConst,char' '*'>>return TypPointer,string' "&&">>return TypRvalueReference,char' '&'>>return TypReference]]
-
     cpType = parser $
         (string' "::" >> TypTypeType TypNothing <$> Parser cpType) </>
         chainl1 (Parser cpTypeSmall) (string' "::">>return TypTypeType)
+    cpTypeSmall = parser $
+        parseOperators (Parser cpTypeMin)
+            (operatorList TypBinaryOperator infixlTypeOperators)
+            (operatorList TypBinaryOperator infixrTypeOperators)
+            (operatorList TypPrefixOperator prefixTypeOperators)
+            (operatorList TypSuffixOperator suffixTypeOperators)
+    cpTypeMin = parser $
+        (TypApplication <$> Parser cpTypeMinMin <*> Parser cdvTemplateApplicationList) </>
+        (string' "var" >> return TypAuto) </>
+        (string' "val" >> return (TypPrefixOperator "const" TypAuto)) </>
+        (string' "ref" >> return (TypSuffixOperator "&" TypAuto)) </>
+        (string' "rref" >> return (TypSuffixOperator "&&" TypAuto)) </>
+        (string' "decltype" >> TypDecltype <$> paren (Parser cdvExpression) ) </>
+        Parser cpTypeMinMin
+    cpTypeMinMin = parser $
+        (paren (Parser cdvType)) </>
+        (TypName <$> (Name<$>(oneOfStr' names) </> Parser cdvSimpleName)) </>
+        (TypTuple <$> parenSep (Parser cdvType)) </>
+        (TypList <$> bracket (Parser cdvType))
+        where names = 
+                [x++y | x<-["signed ","unsinged "],y<-["char","short","int","long","long long","long long int"]] ++
+                ["long double","long long","long long int"]
 
     ---- Variant ----
 

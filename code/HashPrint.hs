@@ -31,7 +31,7 @@ cppReservedTypes = [
     "bool","char","char16_t","char32_t","double","float","int","long","signed","unsigned","short","void"]
 cppReservedValues = ["false","true"]
 
-cppDefinableSymbols = [
+cppDefinableOperators = [
     "+","-","*","/","%",
     "++","--",
     "+=","-=","*=","/=","%=",
@@ -43,10 +43,10 @@ cppDefinableSymbols = [
     "==","!=","<",">",">=","<=",
     "&","->","->*"]
 
-cppUndefinableSymbols = [
+cppUndefinableOperators = [
     "?",":","::",".",".*"]
 
-symbolName :: Symbol -> String
+symbolName :: Operator -> String
 symbolName s = "operator"++ translate s
     where name c = case c of {
               '!'->"Excl"; '?'->"Quest";
@@ -57,7 +57,7 @@ symbolName s = "operator"++ translate s
               '@'->"At"; '$'->"Dollar"; '%'->"Percent";
               '&'->"And"; '|'->"Or"; '^'->"Xor"; '~'->"Not";
               '#'->"Hash"; '.'->"Dot"}
-          translate s = if elem s cppDefinableSymbols
+          translate s = if elem s cppDefinableOperators
                         then s
                         else concatMap name s
 
@@ -98,24 +98,17 @@ instance Interpret Name where
 
 instance Interpret Type where
     interpret (TypName n) = interpret n
-    interpret (TypSigned n) = "signed "++interpret n
-    interpret (TypUnsigned n) = "unsigned "++interpret n
-    interpret (TypLong n) = "long "++interpret n
     interpret (TypApplication t as) = interpret t ++ interpret as
-    interpret (TypConst t) = "const"`space`interpret t
-    interpret (TypMutable t) = "mutable"`space`interpret t
-    interpret (TypConstexpr t) = "constexpr"`space`interpret t
-    interpret (TypStatic t) = "static"`space`interpret t
-    interpret (TypPointer t) = interpret t ++ "*"
-    interpret (TypReference t) = interpret t ++ "&"
-    interpret (TypRvalueReference t) = interpret t ++ "&&"
-    interpret (TypFunction (TypTuple ts) t2) = "hash::function"++angleSep[justSep $ map interpret ts,interpret t2]
-    interpret (TypFunction t1 t2) = "hash::function"++angleSep [interpret t1,interpret t2]
+    interpret (TypBinaryOperator "->" (TypTuple ts) t2) = "hash::function"++angleSep[justSep $ map interpret ts,interpret t2]
+    interpret (TypBinaryOperator "->" t1 t2) = "hash::function"++angleSep [interpret t1,interpret t2]
+    interpret (TypBinaryOperator s t1 t2) = "void"
+    interpret (TypPrefixOperator s t) = s`space`interpret t
+    interpret (TypSuffixOperator "@" t) = "const"`space`interpret t
+    interpret (TypSuffixOperator s t) = interpret t++s
     interpret (TypArray t (-1)) = interpret t ++ "[]"
     interpret (TypArray t n) = interpret t ++ "[" ++ interpret n ++ "]"
     interpret (TypTuple ts) = "hash::tuple" ++ angleSep (map interpret ts)
     interpret (TypList t) = "hash::list" ++ angle (interpret t)
-    interpret (TypTypename t) = "typename "++interpret t
     interpret (TypTypeType t1 t2) =  interpret t1++"::"++interpret t2
     interpret TypAuto = "auto"
     interpret (TypDecltype e) = "decltype"++paren(interpret e)
@@ -172,15 +165,17 @@ instance Interpret Expression where
     interpret ExpUnit = "hash::unit"
     interpret (ExpList l) = "hash::make_list" ++ parenSep (map interpret l)
     interpret (ExpInitializerList l) = braceSep (map interpret l)
-    interpret (ExpBinarySymbol s e1 e2)
-        | s=="."||s=="->" = paren(interpret e1) ++ s ++ interpret e2
-        | s==">>" = paren(interpret e1) ++ "," ++ paren(interpret e2)
-        | s=="|>" = paren(interpret e2) ++ paren(interpret e1)
-        | s=="<|" = paren(interpret e1) ++ paren(interpret e2)
-        | s=="**" = "power"
+    interpret (ExpBinaryOperator s e1 e2)
+        | s=="."||s=="->" = paren(interpret e1)++s++interpret e2
+        | s=="<*" = "do_before"++parenSep[interpret e1,interpret e2]
+        | s=="*>" = paren(paren(interpret e1)++","++paren(interpret e2))
+        | s=="|>" = paren(interpret e2)++paren(interpret e1)
+        | s=="<|" = paren(interpret e1)++paren(interpret e2)
+        | s=="**" = "power"++parenSep[interpret e1,interpret e2]
+        | head s=='`'&&last s=='`' = init(tail s)++parenSep[interpret e1,interpret e2]
         | otherwise = paren(interpret e1) ++ s ++ paren(interpret e2)
-    interpret (ExpPrefixUnarySymbol s e) = s ++ paren (interpret e)
-    interpret (ExpSuffixUnarySymbol s e) = paren (interpret e) ++ s
+    interpret (ExpPrefixOperator s e) = s ++ paren (interpret e)
+    interpret (ExpSuffixOperator s e) = paren (interpret e) ++ s
     interpret (ExpIf e1 e2 (Just e3)) = paren (interpret e1) ++ "?" ++ interpret e2++ ":" ++ paren (interpret e3)
     interpret (ExpIf e1 e2 Nothing) = paren (interpret e1) ++ "?" ++ interpret e2++ ":" ++ "throw \"No Match For Condition\""
     interpret (ExpLambda (Just t) a s) = "[&]"++interpret a++interpret t++"->"++interpretblock s
@@ -192,28 +187,31 @@ instance Interpret Expression where
               each (PatOr p1 p2, e) = each(p1,e)++each(p2,e)
               each (p,e) = "("++patternif x p++")?[&]()"++brace(patternget x p++"return "++interpret e++";")++"():"
               error = "throw \"No Match For Pattern\""
-    interpret (ExpIs e t) = paren("nullptr!=dynamic_cast"++angle(interpret (TypPointer t))++paren(interpret (ExpPrefixUnarySymbol "*" e)))
-    interpret (ExpAs e t) = "dynamic_cast"++angle(interpret t)++paren(interpret e)
-    interpret (ExpStaticCast e t) = "static_cast"++angle(interpret t)++paren(interpret e)
+    interpret (ExpTypeOperator ":>" e t) = "static_cast"++angle(interpret t)++paren(interpret e)
+    interpret (ExpTypeOperator ":?>" e t) = "dynamic_cast"++angle(interpret t)++paren(interpret e)
+    interpret (ExpTypeOperator ":#>" e t) = "reinterpret_cast"++angle(interpret t)++paren(interpret e)
+    interpret (ExpTypeOperator ":@>" e t) = "const_cast"++angle(interpret t)++paren(interpret e)
+    interpret (ExpTypeOperator ":?" e t) = paren("nullptr!=dynamic_cast"++angle(paren(interpret t)++"*")++paren(paren(interpret e)++"*"))
 
 instance Interpret Statement where
     interpret SttEmpty = ";"
     interpret (SttSingle e) = (interpret e)++";"
     interpret (SttBlock ts) = brace (interpret ts)
     interpret (SttControlFlow "while" e s) = "while" ++ paren (interpretanyway e) ++ interpret s
-    interpret (SttControlFlow "until" (Left e) s) = "while" ++ paren ("!"++paren (interpret e)) ++ interpret s
-    interpret (SttControlFlow "dowhile" e s) = "do" ++ interpret s ++ "while" ++ paren (interpretanyway e) ++ ";"
-    interpret (SttControlFlow "dountil" (Left e) s) = "do" ++ interpret s ++ "while" ++ paren ("!"++paren (interpret e)) ++ ";"
-    interpret (SttFor x e1 e2 s) = "for" ++ paren(interpretanyway x++";"++interpret e1++";"++interpret e2) ++ interpret s
+    interpret (SttControlFlow "until" (Left e) s) = "while" ++ paren ("!"++paren (interpret e)) ++ interpretblock s
+    interpret (SttControlFlow "dowhile" e s) = "do" ++ interpretblock s ++ "while" ++ paren (interpretanyway e) ++ ";"
+    interpret (SttControlFlow "dountil" (Left e) s) = "do" ++ interpretblock s ++ "while" ++ paren ("!"++paren (interpret e)) ++ ";"
+    interpret (SttFor x e1 e2 s) = "for" ++ paren(interpretanyway x++";"++interpret e1++";"++interpret e2) ++ interpretblock s
     interpret (SttReturn ExpNothing) = "return;"
     interpret (SttReturn e) = "return"`space`interpret e ++ ";"
     interpret (SttGoto n) = "goto"`space`interpret n ++ ";"
     interpret SttContinue = "continue;"
     interpret SttBreak = "break;"
-    interpret (SttIf e s1 (Just s2)) = "if" ++ paren (interpretanyway e) ++ interpret s1 ++ "else" ++ interpret s2
-    interpret (SttIf e s1 Nothing) = "if" ++ paren (interpretanyway e) ++ interpret s1
-    interpret (SttMatch e cs) = (map each cs)`sep`" "++error
-        where x = interpret e
+    interpret (SttIf e s1 (Just s2)) = "if" ++ paren (interpretanyway e) ++ interpretblock s1 ++ "else" ++ interpretblock s2
+    interpret (SttIf e s1 Nothing) = "if" ++ paren (interpretanyway e) ++ interpretblock s1
+    interpret (SttMatch e cs) = head++(map each cs)`sep`" "++error
+        where head = interpret(TokVDef$VDef TypAuto [(Name x,InitExp e)])
+              x = "variant_for_match"
               each (PatOr p1 p2, e) = each(p1,e)`space`each(p2,e)
               each (p,s) = "if("++patternif x p++")"++brace(patternget x p++interpret s)++"else"
               error = brace "throw \"No Match For Pattern\";"
@@ -231,17 +229,14 @@ instance Interpret TemplateApplicationList where
         where each (Left t) = interpret t
               each (Right e) = paren(interpret e)
 
-typesuffix (TypPointer t) = (fst(typesuffix t),snd(typesuffix t)++"*")
-typesuffix (TypReference t) = (fst(typesuffix t),snd(typesuffix t)++"&")
-typesuffix (TypRvalueReference t) = (fst(typesuffix t),snd(typesuffix t)++"&&")
+typesuffix (TypSuffixOperator s t) = (fst(typesuffix t),snd(typesuffix t)++s)
 typesuffix t = (t,"")
 instance Interpret VariantDeclaration where
     interpret (VDec t ns) = "extern "++interpret (fst(typesuffix t))`space`justSep (map variant ns)
         where variant n = snd(typesuffix t)++interpret n
 instance Interpret Initialization where
     interpret InitNo = ""
-    interpret (InitExp e@(ExpInitializerList _)) = "="++interpret e
-    interpret (InitExp e) = "="++paren(interpret e)
+    interpret (InitExp e) = "="++interpret e
     interpret (InitArg es) = parenSep(map interpret es)
     interpret (InitList es) = braceSep(map interpret es)
 instance Interpret VariantDefinition where

@@ -3,37 +3,28 @@ import Pappy.Pos
 
 data Name = Name String | NameInType [Type] String | ThisType | TildaThisType deriving (Eq, Show, Read)
 type Literal = String
-type Symbol = String
+type Operator = String
 data WriteModifier = Const | Mutable | NoWM deriving (Eq, Show, Read)
 
 data TemplateDefinitionList = TDL [(Type,Maybe Name)] deriving (Eq, Show, Read)
 data TemplateApplicationList = TAL [Either Type Expression] deriving (Eq, Show, Read)
 
 data Type = TypName Name
-          | TypSigned Name
-          | TypUnsigned Name
-          | TypLong Type
           | TypApplication Type TemplateApplicationList
-          | TypConst Type
-          | TypMutable Type
-          | TypStatic Type
-          | TypConstexpr Type
-          | TypPointer Type
-          | TypReference Type
-          | TypRvalueReference Type
-          | TypFunction Type Type
+          | TypBinaryOperator Operator Type Type
+          | TypPrefixOperator Operator Type
+          | TypSuffixOperator Operator Type
           | TypArray Type Int
           | TypTuple [Type]
           | TypList Type
           | TypAuto
           | TypDecltype Expression
           | TypTypeType Type Type
-          | TypTypename Type
           | TypNothing
     deriving (Eq, Show, Read)
 
 data Expression = ExpName Name
-                | ExpSymbol Symbol
+                | ExpOperator Operator
                 | ExpNumberLiteral Literal
                 | ExpStringLiteral Literal
                 | ExpCharLiteral Literal
@@ -42,17 +33,15 @@ data Expression = ExpName Name
                 | ExpUnit
                 | ExpList [Expression]
                 | ExpInitializerList [Expression]
-                | ExpBinarySymbol Symbol Expression Expression
-                | ExpPrefixUnarySymbol Symbol Expression
-                | ExpSuffixUnarySymbol Symbol Expression
+                | ExpBinaryOperator Operator Expression Expression
+                | ExpPrefixOperator Operator Expression
+                | ExpSuffixOperator Operator Expression
                 | ExpIf Expression Expression (Maybe Expression)
                 | ExpLambda (Maybe Type) ArgumentList Statement
                 | ExpStatement Statement
                 | ExpData Name [Expression]
                 | ExpMatch Expression [(Pattern,Expression)]
-                | ExpAs Expression Type
-                | ExpIs Expression Type
-                | ExpStaticCast Expression Type
+                | ExpTypeOperator Operator Expression Type
                 | ExpNothing
     deriving (Eq, Show, Read)
 
@@ -81,12 +70,14 @@ data Pattern = PatName Name
              | PatTuple [Pattern]
              | PatList [Pattern]
              | PatAs Name Pattern
+             | PatNot Pattern
              | PatOr Pattern Pattern
              | PatAnd Pattern Pattern
              | PatRecord [(Name,Pattern)]
              | PatEqual Expression
              | PatType Type
              | PatWhen Pattern Expression
+             | PatUnless Pattern Expression
     deriving (Eq, Show, Read)
 
 data Initialization = InitNo | InitExp Expression | InitArg [Expression] | InitList [Expression] deriving (Eq, Show, Read)
