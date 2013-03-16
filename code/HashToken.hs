@@ -51,6 +51,7 @@ data Statement = SttEmpty
                | SttBlock Tokens
                | SttControlFlow String (Either Expression VariantDefinition) Statement
                | SttFor (Either Expression VariantDefinition) Expression Expression Statement
+               | SttForeach Type Name Expression Statement
                | SttSwitch Expression ([Expression],Statement)
                | SttReturn Expression
                | SttGoto Name
@@ -69,6 +70,7 @@ data Pattern = PatName Name
              | PatLiteral Literal
              | PatTuple [Pattern]
              | PatList [Pattern]
+             | PatArray [Pattern]
              | PatAs Name Pattern
              | PatNot Pattern
              | PatOr Pattern Pattern

@@ -212,6 +212,8 @@ parse' a pos s = d where
     braceSep = sandwichSep (char' '{') (char' '}') (char' ',')
     angle = sandwich (char' '<') (char' '>')
     angleSep = sandwichSep (char' '<') (char' '>') (char' ',')
+    oxford = sandwich (string' "[|") (string' "|]")
+    oxfordSep = sandwichSep (string' "[|") (string' "|]") (char' ',')
     token e p = Tokens <$> concat <$> (many (
         (single (Parser cpPos) <++> ((Parser cdvWhiteStuff1 `satisfy` (not.null)) </> p)) </>
         Parser cdvWhiteStuff1 </> (single (Parser cpPos) <++> single e)))
@@ -312,24 +314,26 @@ parse' a pos s = d where
     ---- Pattern ----
 
     cpWildcardOthers = parser $ string' "_*" >> return PatWildcardOthers
+    cpManyThings = parser $ justSep (Parser cpWildcardOthers</>Parser cdvPattern)
+                   `satisfy` (\x->x==[]||PatWildcardOthers`notElem`init x)
     cpPatternMinMin = parser $
-        PatTuple <$> (parenSep (Parser cdvPattern) `satisfy` (\x->length x/=1))</>
+        PatTuple <$> (paren(Parser cpManyThings) `satisfy` (\x->length x/=1))</>
+        PatType <$> (string' "?>" >> Parser cdvType) </>
         paren (Parser cdvPattern) </>
         (char' '_'>>return PatWildcard) </>
         PatDataConstructor <$> Parser cdvName <*> braceSep (Parser cdvPattern) </>
         PatAs <$> Parser cdvName <*> (string' "@">>Parser cdvPattern) </>
         PatName <$> Parser cdvName </>
         PatLiteral <$> Parser cpNumberLiteral </>
-        PatList <$> (
-            bracketSep(Parser cpWildcardOthers</>Parser cdvPattern) </>
-            braceSep(Parser cpWildcardOthers</>Parser cdvPattern))
-            `satisfy` (\x->x==[]||PatWildcardOthers`notElem`init x) </>
+        PatList <$> (bracket(Parser cpManyThings) </> brace(Parser cpManyThings)) </>
+        PatArray <$> oxford(Parser cpManyThings) </>
         PatEqual <$> (char' '='>>paren(Parser cdvExpression)) </>
         PatRecord <$> braceSep(Parser cdvName<|~|>Parser cdvPattern)
     cpPatternMin = parser $ parseOperators (Parser cpPatternMinMin)
         [[char' '|'>>return PatOr],[char' '&'>>return PatAnd]] []
         [[char' '!'>>return PatNot]] []
     cpPattern = parser $
+        do{p<-Parser cpPatternMin;string' "as";n<-Parser cdvName;return$PatAs n p} </>
         PatWhen <$> Parser cpPatternMin <*> (string' "when">>Parser cdvExpression) </>
         PatUnless <$> Parser cpPatternMin <*> (string' "unless">>Parser cdvExpression) </>
         Parser cpPatternMin
@@ -457,6 +461,16 @@ parse' a pos s = d where
            char' ')'
            s <- Parser cdvStatement
            return $ SttFor x e1 e2 s
+        </>
+        do string' "foreach"
+           char' '('
+           t <- Parser cdvType
+           n <- Parser cdvSimpleName
+           string' "in"
+           e <- Parser cdvExpression
+           char' ')'
+           s <- Parser cdvStatement
+           return $ SttForeach t n e s
         </>
         do string' "match"
            e <- Parser cdvExpression

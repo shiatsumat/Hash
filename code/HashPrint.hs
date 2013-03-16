@@ -114,46 +114,54 @@ instance Interpret Type where
     interpret (TypDecltype e) = "decltype"++paren(interpret e)
     interpret TypNothing = ""
 
+patternmany each ps = concatMap each [0..length ps-1-if only then 0 else 1]
+    where only = last ps/=PatWildcardOthers
 patternif x (PatName n) = "true"
 patternif x (PatLiteral l) = paren(x)++"=="++l
 patternif x (PatEqual l) = paren(x)++"=="++paren(interpret l)
 patternif x PatWildcard = "true"
+patternif x (PatType t) = paren("nullptr!=dynamic_cast"++angle(paren(interpret t)++"*")++paren(paren(x)++"*"))
 patternif x (PatAnd p1 p2) = paren(patternif x p1)++"&&"++paren(patternif x p2)
 patternif x (PatOr p1 p2) = paren(patternif x p1)++"||"++paren(patternif x p2)
 patternif x (PatAs n p) = patternif x p
-patternif x (PatTuple ps) = "hash::static_tuple_size("++x++")=="++show(length ps)
-    ++concatMap each [0..length ps-1]
+patternif x (PatTuple ps) = (if last ps/=PatWildcardOthers then "hash::static_tuple_size("++x++")=="++show(length ps) else "true")
+    ++patternmany each ps
     where each n = "&&"++patternif ("hash::get<"++show n++">("++x++")") (ps!!n)
-patternif x (PatList ps) = (if only
+patternif x (PatList ps) = (if last ps/=PatWildcardOthers
     then paren(x)++".size()=="++show(length ps) else "true")
-    ++concatMap each [0..length ps-1-if only then 0 else 1]
+    ++patternmany each ps
     where each n = "&&"++patternif (paren(x)++".at("++show n++")") (ps!!n)
-          only = last ps/=PatWildcardOthers
+patternif x (PatArray ps) = patternmany each ps
+    where each n = "&&"++patternif (paren(x)++"["++show n++"]") (ps!!n)
+    
 patternif x (PatDataConstructor n ps) = paren(x)++".is_"++interpret n++"()&&"
     ++patternif (x++"."++interpret n++"()") (PatTuple ps)
 patternif x (PatRecord ps) = concatMap each ps
     where each (n,p) = patternif (paren(x)++"."++interpret n) p
 patternif x (PatWhen p e) = patternif x p++"&&"++paren(interpret e)
+patternif x (PatUnless p e) = patternif x p++"&&!"++paren(interpret e)
 
 patternget x (PatName n) = "auto& "++interpret n++"="++paren x++";\n"
 patternget _ (PatLiteral _) = ""
 patternget _ (PatEqual _) = ""
 patternget _ PatWildcard = ""
+patternget _ (PatType _) = ""
 patternget x (PatAnd p1 p2) = patternget x p1++patternget x p2
 patternget x (PatOr p1 p2) = if g1==g2 then g1 else "static_assert(true,\"Or Pattern Is Invalid\");\n"
     where g1 = patternget x p1
           g2 = patternget x p2
 patternget x (PatAs n p) = patternget x (PatName n)++patternget x p
-patternget x (PatTuple ps) = concatMap each [0..length ps-1]
+patternget x (PatTuple ps) = patternmany each ps
     where each n = patternget ("hash::get<"++show n++">("++x++")") (ps!!n)
-patternget x (PatList ps)
-    = concatMap each [0..length ps-1-if only then 0 else 1]
+patternget x (PatList ps) = patternmany each ps
     where each n = patternget (paren(x)++".at("++show n++")") (ps!!n)
-          only = last ps/=PatWildcardOthers
+patternget x (PatArray ps) = patternmany each ps
+    where each n = patternget (paren(x)++"["++show n++"]") (ps!!n)
 patternget x (PatDataConstructor n ps) = patternget (x++"."++interpret n++"()") (PatTuple ps)
 patternget x (PatRecord ps) = concatMap each ps
     where each (n,p) = patternget (paren(x)++"."++interpret n) p
 patternget x (PatWhen p e) = patternget x p
+patternget x (PatUnless p e) = patternget x p
 
 instance Interpret Expression where
     interpret (ExpName n) = interpret n
@@ -202,6 +210,7 @@ instance Interpret Statement where
     interpret (SttControlFlow "dowhile" e s) = "do" ++ interpretblock s ++ "while" ++ paren (interpretanyway e) ++ ";"
     interpret (SttControlFlow "dountil" (Left e) s) = "do" ++ interpretblock s ++ "while" ++ paren ("!"++paren (interpret e)) ++ ";"
     interpret (SttFor x e1 e2 s) = "for" ++ paren(interpretanyway x++";"++interpret e1++";"++interpret e2) ++ interpretblock s
+    interpret (SttForeach t n e s) = "for"++paren(interpret t`space`interpret n++" : "++interpret e) ++ interpretblock s
     interpret (SttReturn ExpNothing) = "return;"
     interpret (SttReturn e) = "return"`space`interpret e ++ ";"
     interpret (SttGoto n) = "goto"`space`interpret n ++ ";"

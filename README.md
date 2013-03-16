@@ -1,5 +1,14 @@
 ﻿# Hash Programming Language
 
+	      ###   ###              ___   
+	     ###   ###              /  /   
+	  #############            /  /___ 
+	   ###   ###   ___________/  ___  \
+	############# / __     _____/  /  /
+	 ###   ###   / /__\ /____  /  /  / 
+	###   ###    \_____/______/__/  /  
+
+
 Hash is "a much better C++".
 The syntax looks like C++, but it's much more beautiful.
 Hash generates a C++11 source code from the source code.

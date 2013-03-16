@@ -1,14 +1,12 @@
 # Hash Ver 0.01 Reference
 
-	         ###   ###                         
-	        ###   ###               ___        
-	    ###############            /  /        
-	   ###############            /  /___      
-	     ###   ###    ___________/  ___  \     
-	 ############### / __     _____/  /  /     
-	##############  / /__\ /____  /  /  /      
-	  ###   ###     \_____/______/__/  /       
-     ###   ###                                 
+	      ###   ###              ___   
+	     ###   ###              /  /   
+	  #############            /  /___ 
+	   ###   ###   ___________/  ___  \
+	############# / __     _____/  /  /
+	 ###   ###   / /__\ /____  /  /  / 
+	###   ###    \_____/______/__/  /  
 
 ## Binaries in Directory "Code"
 
@@ -37,26 +35,6 @@
 	//a
 
 
-## Type
-
-	A
-	var ===> auto
-	val ===> const auto
-	ref ===> auto&
-	rref ===> auto&&
-	decltype
-	const A
-	mutable A
-	typename A
-	A*
-	A&
-	A&&
-	A! ===> const A
-	A->B ===> hash::function<A,B>
-	(A,B) ===> hash::tuple<A,B>
-	[A] ===> hash::forward_list<A>
-
-
 ## Name
 
 	a
@@ -70,7 +48,7 @@
 * You can use a C++ keyword to define something, and the name will be automatically changed to avoid crashing.
 * Please note that C++ keywords that refer to type names (such as int) and data (such as true) won't be automatically changed.
   Hash sees these names as *automatically declared names*, not as contextual keywords.
-* You can add "@" to avoid clashing with Hash's contextual keywords.
+* You can add "@" to avoid clashing with Hash's contextual keywords. Don't insert any whitespace between "@" and name.
 
 
 ## Literal
@@ -78,6 +56,27 @@
 	123
 	'x'
 	"foo"
+
+
+## Type
+
+	A
+	var ===> auto
+	val ===> const auto
+	ref ===> auto&
+	rref ===> auto&&
+	decltype
+	const A
+	constexpr A
+	mutable A
+	typename A
+	A*
+	A&
+	A&&
+	A@ ===> const A
+	A->B ===> hash::function<A,B>
+	(A,B) ===> hash::tuple<A,B>
+	[A] ===> hash::forward_list<A>
 
 
 ## Expression
@@ -103,6 +102,7 @@
 	if(x){}
 	if(x){}else{}
 	for(x;y;z){}
+	foreach(int x in xs){}
 	while(x){}
 	until(x){} ===> while(!x){}
 	dowhile(x){} ===> do{}while(x)
@@ -138,18 +138,42 @@
 
 	a ---- Name
 	10 ---- Literal
-	=10+20 ---- Expression
+	null ---- Null
+	=(10+20) ---- Expression
 	_ ---- Wildcard
+	[1,2,3,_*] ---- Wildcard Others (0 or more elements)
+	(a) ---- Parenthesized
 	(1,2,3) ---- Tuple
 	[1,2,3] ---- List
+	[|1,2,3|] ---- Array
 	Cons{1,[]} ---- Data Constructor
+	{data=(a,b), height=10} ---- Record
+	:? T ---- Type Test
+	a@(1,2,3) ---- As
+	(1,2,3) as a ---- As
+	(a,b) & (_,"good") ---- And
+	(a,b) | (_,"good") ---- Or
+	!(_,_) ---- Not
+	(a,b) when a+b=10 ---- When
+	(a,b) unless a+b=10 ---- Unless
+
+
+## Pattern Match
+
+	match x with case (a,b) -> a+b case _ -> 0 ---- Match Expression
+	match x with case (a,b) -> {return a+b;} case _ -> {return 0;} ---- Match Statement
 
 
 ## Enum
 
 	enum A{x=0,y} ===> enum A{x=0,y};
+	enum class A{} ===> enum class A{};
 	bitenum A{x,y,z} ===> enum A{x=1,y=2,z=4};
+	bitenum class A{}
 	enum A;
+	enum class A;
+	bitenum A;
+	bitenum class A;
 
 
 ## Class/Struct
@@ -160,6 +184,11 @@
 	class A<T,int x>{} ===> template<typename T,int x> class A{...};
 	class A where c {} ===> class A{...static_assert(...);};
 	class A;
+
+
+## Require
+
+	require true
 
 
 ## Where
