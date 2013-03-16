@@ -48,6 +48,11 @@ int main(){
         0, 1, 2, 3
     };
     #line 20
+    for(int i : x){
+        #line 21
+        printf("%d", i);
+    }
+    #line 23
     [&](){
         auto variant_for_match=x;
         if((variant_for_match).size()==4&&true&&true&&true&&true){
@@ -64,18 +69,18 @@ int main(){
             throw "No Match For Pattern";
         }
     }();
-    #line 23
+    #line 26
     return 0;
 }
-#line 25
+#line 28
 namespace foo{
-#line 27
+#line 30
 template<typename T, int x>
 int f(T y){
     return ((10)+(x))+(--(-(++(+(((((y)++)++)--)--)))));
 }
-#line 29
+#line 32
 typedef int foo;
-#line 30
+#line 33
 ;
 }

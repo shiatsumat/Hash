@@ -18,6 +18,9 @@ int main(){
 	if(bool x=true){printf("foo\n");}
 	type foo = int@;
 	hash::vector<int> x{0,1,2,3};
+	foreach(int i in x){
+		printf("%d",i);
+	}
 	match x with
 		case [a,b,c,d] -> printf("%d",a+b+c+d)
 		case [0]|_  -> printf("foo");
